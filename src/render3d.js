@@ -81,6 +81,59 @@ const R3 = (() => {
     scene.add(rim);
   }
 
+  // ── Immeubles Kenney City Kit Commercial (CC0, assets/kenney) ──
+  // Les blocs simples restent affichés si les modèles ne se chargent pas (ouverture en file://, hors ligne…).
+  const KENNEY = 'assets/kenney/city-commercial/';
+  let CITY_SHADOWS = /[?&]ombres=1/.test(location.search); // ombres des immeubles détaillés : coûteuses, désactivées par défaut
+  function loadScript(src) {
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  }
+  async function upgradeCity(houses, fallback) {
+    if (location.protocol === 'file:' || /[?&]blocs=1/.test(location.search)) return; // ?blocs=1 : ville simplifiée
+    try {
+      if (!THREE.GLTFLoader) await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js');
+      const loader = new THREE.GLTFLoader();
+      const gltfs = await Promise.all('abcdefghijklmn'.split('').map((l) => loader.loadAsync(`${KENNEY}building-${l}.glb`)));
+      const variants = gltfs.map((gl) => {
+        gl.scene.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(gl.scene);
+        const parts = [];
+        gl.scene.traverse((o) => { if (o.isMesh) parts.push({ geo: o.geometry, mat: o.material, m: o.matrixWorld.clone() }); });
+        return { box, size: box.getSize(new THREE.Vector3()), ctr: box.getCenter(new THREE.Vector3()), parts, list: [] };
+      });
+      const rnd = Render.seeded(4242);
+      for (const b of houses) variants[Math.floor(rnd() * variants.length)].list.push({ b, flip: rnd() < 0.5 });
+      const base = new THREE.Matrix4(), pre = new THREE.Matrix4(), m4 = new THREE.Matrix4(), col = new THREE.Color();
+      const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), pos = new THREE.Vector3(), scl = new THREE.Vector3();
+      for (const v of variants) {
+        if (!v.list.length) continue;
+        pre.makeTranslation(-v.ctr.x, -v.box.min.y, -v.ctr.z);
+        for (const part of v.parts) {
+          const im = new THREE.InstancedMesh(part.geo, part.mat, v.list.length);
+          v.list.forEach(({ b, flip }, i) => {
+            const s = Math.min(b.w / v.size.x, b.h / v.size.z) * 0.95;
+            // hauteur : proportions du modèle, modulées par la hauteur prévue du bloc
+            const sy = s * U.clamp(0.75 + b.hgt / 110, 0.8, 1.6);
+            q.setFromAxisAngle(up, flip ? Math.PI : 0);
+            base.compose(pos.set(b.x, 0, b.y), q, scl.set(s, sy, s));
+            m4.copy(base).multiply(pre).multiply(part.m);
+            im.setMatrixAt(i, m4);
+            // teinte légère selon le quartier : chaude à gauche, froide à droite
+            const a = ((Math.atan2(-b.y, b.x) * 180) / Math.PI + 360) % 360;
+            const side = (MAP.sectors.find((sc) => a >= sc.a0 && a < sc.a1) || MAP.sectors[0]).side;
+            col.setHex(side === 'gauche' ? 0xffd2cc : side === 'droite' ? 0xcfdcff : 0xf2f2ea);
+            im.setColorAt(i, col);
+          });
+          im.castShadow = CITY_SHADOWS; im.receiveShadow = true;
+          scene.add(im);
+        }
+      }
+      for (const f of fallback) scene.remove(f);
+    } catch (e) {
+      console.warn('Immeubles Kenney indisponibles, blocs simples conservés', e);
+    }
+  }
+
   function buildCity() {
     const blocks = Render.blockList();
     const houses = blocks.filter((b) => !b.park);
@@ -103,6 +156,7 @@ const R3 = (() => {
       roof.setColorAt(i, col);
     });
     for (const x of [im, roof]) { x.castShadow = true; x.receiveShadow = true; scene.add(x); }
+    upgradeCity(houses, [im, roof]);
     const trunk = new THREE.InstancedMesh(G.cylLo, mat(0x5b4030), parks.length * 3);
     const leaf = new THREE.InstancedMesh(G.sphLo, mat(0x3f8f55), parks.length * 3);
     let k = 0;
