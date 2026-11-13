@@ -59,6 +59,13 @@
       if (menuMode === 'solo') renderMenu(); else renderOnline();
     };
   }
+  // avatar voxel du candidat (repli sur les initiales)
+  function avatarHTML(d, team, id) {
+    let url = null;
+    try { url = R3.portrait(d.id, team === 'droite' ? 'droite' : 'gauche'); } catch (e) { /* WebGL indisponible */ }
+    return url ? `<div class="avatar vox ${team}"${id ? ` id="${id}"` : ''}><img src="${url}" alt="${esc(d.name)}"></div>`
+      : `<div class="avatar ${team}"${id ? ` id="${id}"` : ''}>${d.initials}</div>`;
+  }
   function candCard(d, team, onClick, extra) {
     const card = document.createElement('button');
     card.className = 'cand-card ' + team + (d.neutral ? ' neutral' : '') + (extra && extra.cls ? ' ' + extra.cls : '');
@@ -66,7 +73,7 @@
     const ab = d.abilities;
     card.title = ['Q', 'W', 'E', 'R'].map((k, i) => `${spellKey(k, i)} ${ab[k].name} — ${ab[k].desc}`).join('\n');
     card.innerHTML = `
-      <div class="avatar ${team}">${d.initials}</div>
+      ${avatarHTML(d, team)}
       <div class="cc-body">
         <div class="cc-name">${d.name}${d.neutral ? ' <span class="neu">neutre · plus faible</span>' : ''}${extra && extra.tag ? ` <span class="taken">${esc(extra.tag)}</span>` : ''}</div>
         <div class="cc-meta">${d.party} · ${CLASS_NAMES[d.cls]} · ${ROLE_NAMES[d.role]}</div>
@@ -320,8 +327,7 @@
       el.onclick = () => castAuto(k);
       bar.appendChild(el);
     });
-    $('#me-avatar').textContent = p.def.initials;
-    $('#me-avatar').className = 'avatar ' + p.team;
+    $('#me-avatar').outerHTML = avatarHTML(p.def, p.team, 'me-avatar');
     $('#me-name').textContent = p.def.name;
   }
   // Toutes les commandes passent par Game.input : appliquées localement en solo,

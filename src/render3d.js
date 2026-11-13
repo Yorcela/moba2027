@@ -1244,5 +1244,37 @@ const R3 = (() => {
     return { x: hit.x, y: hit.z };
   }
 
-  return { init, resize, sync, setCamera, render, project, pickGround, cam };
+  // ── Portraits voxel (menu, HUD) : rendu hors écran, mis en cache ──
+  let pr = null;
+  const portraits = new Map();
+  function portrait(id, team) {
+    const key = id + '|' + team;
+    if (portraits.has(key)) return portraits.get(key);
+    const V = VOX[id];
+    if (!V) return null;
+    if (!pr) {
+      const canvas = document.createElement('canvas');
+      const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+      r.setSize(160, 160, false);
+      const sc = new THREE.Scene();
+      sc.add(new THREE.HemisphereLight(0xffffff, 0x8a8a9a, 0.75));
+      const d = new THREE.DirectionalLight(0xffffff, 0.75); d.position.set(60, 120, 160); sc.add(d);
+      const cam = new THREE.PerspectiveCamera(30, 1, 1, 2000);
+      pr = { r, sc, cam };
+    }
+    const fake = { team, isPlayer: false, x: 0, y: 0, def: CAND_BY_ID[id] };
+    const o = buildVoxel(fake, V);
+    o.traverse((m) => { if (m.isMesh && m.geometry.type === 'RingGeometry') m.visible = false; });
+    pr.sc.add(o);
+    const h = 1.25 * (V.h || 1);
+    // cadrage tête et épaules, légèrement de trois quarts
+    pr.cam.position.set(26 * h, 80 * h, 82 * h); pr.cam.lookAt(0, 72 * h, 0);
+    pr.r.render(pr.sc, pr.cam);
+    const url = pr.r.domElement.toDataURL('image/png');
+    pr.sc.remove(o);
+    portraits.set(key, url);
+    return url;
+  }
+
+  return { init, resize, sync, setCamera, render, project, pickGround, cam, portrait };
 })();
