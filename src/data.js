@@ -238,15 +238,15 @@ const EXTRA = [
   ['villepin', 'Dominique de Villepin', 'DdV', 'La France humaine et forte', 'droite', 'mage', ['Envolée lyrique', 'Grandeur', 'Panache', 'Discours à l’ONU'], { hair: 0xd8d8d8, style: 'swept', suit: 0x1f2333, tie: 0x3a3f8f, height: 1.1 }],
   ['zemmour', 'Éric Zemmour', 'EZ', 'Reconquête', 'droite', 'tireur', ['Chronique', 'Polémique', 'Plateau', 'Reconquête'], { hair: 0x2a221c, style: 'bald', suit: 0x22283a, tie: 0x1f3f8f, height: 0.92 }],
   // ── neutres ou inclassables (plus faibles, jouables dans les deux camps) ──
-  ['asselineau', 'François Asselineau', 'FA', 'UPR', 'neutre', 'enchanteur', ['Article 50', 'Conférence', 'Diaporama', 'Conférence de 3 h'], { hair: 0x8a8a8a, style: 'short', suit: 0x2a2f3a, glasses: 1 }],
+  ['asselineau', 'François Asselineau', 'FA', 'UPR', 'droite', 'enchanteur', ['Article 50', 'Conférence', 'Diaporama', 'Conférence de 3 h'], { hair: 0x8a8a8a, style: 'short', suit: 0x2a2f3a, glasses: 1 }],
   ['branco', 'Juan Branco', 'JB', 'Sans étiquette', 'neutre', 'assassin', ['Révélation', 'Thread', 'Fuite', 'Crépuscule'], { hair: 0x2a1d17, style: 'long', suit: 0x1b1b1f, stubble: 0x2a1d17 }],
-  ['cheve', 'Joël Chevé', 'JC', 'La France Adulte', 'neutre', 'rempart', ['Bon sens', 'Maturité', 'Pas de côté', 'Âge de raison'], { hair: 0xbdbdbd, style: 'short', suit: 0x3b4252 }],
+  ['cheve', 'Joël Chevé', 'JC', 'La France Adulte', 'gauche', 'rempart', ['Bon sens', 'Maturité', 'Pas de côté', 'Âge de raison'], { hair: 0xbdbdbd, style: 'short', suit: 0x3b4252 }],
   ['dubuisson', 'Emmanuel Dubuisson', 'ED', 'Sans étiquette', 'neutre', 'protecteur', ['Proposition', 'Citoyenneté', 'Covoiturage', 'Union'], { hair: 0x4a3426, style: 'short', suit: 0x30384a }],
   ['egger', 'Clara Egger', 'CE', 'Solution démocratique', 'neutre', 'enchanteur', ['RIC', 'Bulletin', 'Agora', 'Démocratie directe'], { hair: 0x7a5236, style: 'long', suit: 0x4a5a7a, fem: 1 }],
   ['markovic', 'Mira Markovic', 'MM', 'Parti animaliste', 'neutre', 'soigneur', ['Pétition', 'Refuge', 'Transhumance', 'Arche de Noé'], { hair: 0x3a2a20, style: 'long', suit: 0x6a8a3a, fem: 1 }],
   ['mikolajczak', 'Antoine Mikolajczak', 'AM', 'Équinoxe', 'neutre', 'tireur', ['Tableur', 'Expertise', 'Cap', 'Équinoxe'], { hair: 0x6b4a32, style: 'short', suit: 0x2f4f6a }],
-  ['polony', 'Natacha Polony', 'NP', 'Sans étiquette', 'neutre', 'mage', ['Éditorial', 'Souveraineté', 'Chronique', 'Une de magazine'], { hair: 0xe0c27a, style: 'short', suit: 0x2a2f3a, fem: 1 }],
-  ['riner', 'Teddy Riner', 'TR', 'Sans étiquette', 'neutre', 'colosse', ['Ippon', 'Kimono', 'Balayage', 'Médaille d’or'], { hair: 0x161210, style: 'bald', suit: 0xf2f2f2, skin: 0x7a5238, height: 1.25 }],
+  ['polony', 'Natacha Polony', 'NP', 'Sans étiquette', 'droite', 'mage', ['Éditorial', 'Souveraineté', 'Chronique', 'Une de magazine'], { hair: 0xe0c27a, style: 'short', suit: 0x2a2f3a, fem: 1 }],
+  ['riner', 'Teddy Riner', 'TR', 'Sans étiquette', 'droite', 'colosse', ['Ippon', 'Kimono', 'Balayage', 'Médaille d’or'], { hair: 0x161210, style: 'bald', suit: 0xf2f2f2, skin: 0x7a5238, height: 1.25 }],
   ['verdier', 'Fabien Verdier', 'FV', 'Sans étiquette', 'neutre', 'duelliste', ['Interpellation', 'Coup de poing', 'Avancée', 'Sursaut'], { hair: 0x4a3426, style: 'messy', suit: 0x3b4252 }],
 ];
 for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {
@@ -256,7 +256,14 @@ for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {
     abilities: A.kit(names), look,
   });
 }
+// Retirés du choix (et des bots), mais gardés dans le code
+const HIDDEN = new Set(['branco', 'kazib', 'labib', 'mikolajczak', 'verdier', 'batho', 'egger', 'markovic', 'platret', 'becht']);
+// Ordre d'affichage : les plus connus / les mieux placés d'abord
+const POPULARITY = ['lepen', 'melenchon', 'philippe', 'glucksmann', 'retailleau', 'attal', 'zemmour', 'tondelier', 'bertrand', 'villepin',
+  'roussel', 'ruffin', 'cazeneuve', 'dupontaignan', 'riner', 'lisnard', 'polony', 'philippot', 'arthaud', 'asselineau', 'bouamrane', 'cheve', 'dubuisson'];
 for (const d of CANDIDATES) {
+  d.hidden = HIDDEN.has(d.id);
+  d.pop = POPULARITY.indexOf(d.id) < 0 ? 99 : POPULARITY.indexOf(d.id);
   d.cls = ARCH[d.role].cls;
   d.lane = CLASS_LANE[d.cls];
   d.neutral = d.team === 'neutre';

@@ -117,9 +117,11 @@ Les mécaniques de sorts disponibles :
 
 Chaque candidat a des noms de sorts qui lui sont propres. Les 6 premiers ont des kits sur mesure. Le R de Marine Le Pen, « Lâcher de chats », envoie 5 chats sur les adversaires les plus proches.
 
-| Gauche | Droite | Neutres |
+| Gauche | Droite | Neutre |
 |---|---|---|
-| Nathalie Arthaud, Delphine Batho, Karim Bouamrane, Bernard Cazeneuve, Raphaël Glucksmann, Anasse Kazib, Selma Labib, Jean-Luc Mélenchon, Fabien Roussel, François Ruffin, Marine Tondelier | Gabriel Attal, Olivier Becht, Xavier Bertrand, Nicolas Dupont-Aignan, Marine Le Pen, David Lisnard, Édouard Philippe, Florian Philippot, Gilles Platret, Bruno Retailleau, Dominique de Villepin, Éric Zemmour | François Asselineau, Juan Branco, Joël Chevé, Emmanuel Dubuisson, Clara Egger, Mira Markovic, Antoine Mikolajczak, Natacha Polony, Teddy Riner, Fabien Verdier |
+| Jean-Luc Mélenchon, Raphaël Glucksmann, Marine Tondelier, Fabien Roussel, François Ruffin, Bernard Cazeneuve, Nathalie Arthaud, Karim Bouamrane, Joël Chevé | Marine Le Pen, Édouard Philippe, Bruno Retailleau, Gabriel Attal, Éric Zemmour, Xavier Bertrand, Dominique de Villepin, Nicolas Dupont-Aignan, Teddy Riner, David Lisnard, Natacha Polony, Florian Philippot, François Asselineau | Emmanuel Dubuisson |
+
+Dans le menu, les candidats sont triés par notoriété. Juan Branco, Anasse Kazib, Selma Labib, Antoine Mikolajczak, Fabien Verdier, Delphine Batho, Clara Egger, Mira Markovic, Gilles Platret et Olivier Becht sont retirés du choix (et des bots) mais restent définis dans le code (`HIDDEN` dans `src/data.js`). Les hommes en costume portent une cravate rouge à gauche et bleue à droite. Au survol d'un sort dans le HUD, une infobulle détaille son effet et ses statistiques.
 
 ## Contrôles
 

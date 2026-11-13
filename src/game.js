@@ -23,7 +23,7 @@ const Game = (() => {
       for (const cls of ['tank', 'dps', 'soutien']) {
         if (roster.filter((r) => r.team === team).length >= 3) break;
         if (roster.some((r) => r.team === team && r.def.cls === cls)) continue;
-        const pool = CANDIDATES.filter((d) => d.cls === cls && !used.has(d.id) && (d.team === team || d.neutral));
+        const pool = CANDIDATES.filter((d) => !d.hidden && d.cls === cls && !used.has(d.id) && (d.team === team || d.neutral));
         // les candidats du camp sont bien plus souvent choisis que les neutres
         const weighted = pool.flatMap((d) => (d.neutral ? [d] : [d, d, d]));
         const d = U.pick(weighted);
@@ -32,7 +32,7 @@ const Game = (() => {
       }
       // deux humains de même classe : on complète avec n'importe quelle classe
       while (roster.filter((r) => r.team === team).length < 3) {
-        const pool = CANDIDATES.filter((d) => !used.has(d.id) && (d.team === team || d.neutral));
+        const pool = CANDIDATES.filter((d) => !d.hidden && !used.has(d.id) && (d.team === team || d.neutral));
         const d = U.pick(pool);
         used.add(d.id);
         roster.push({ def: d, team });

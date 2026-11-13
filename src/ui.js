@@ -120,15 +120,11 @@
     list.innerHTML = '';
     if (!chosenTeam) { list.innerHTML = '<p class="hint">Choisissez d’abord votre camp : vous pourrez incarner un candidat de ce camp ou un candidat neutre (plus faible).</p>'; return; }
     // candidats du camp + neutres (plus faibles), groupés par classe
-    for (const cls of ['tank', 'dps', 'soutien']) {
-      const h = document.createElement('h3');
-      h.className = 'cls-title';
-      h.textContent = CLS_TITLES[cls];
-      list.appendChild(h);
-      for (const d of CANDIDATES.filter((c) => c.cls === cls && (c.team === chosenTeam || c.neutral))) {
-        list.appendChild(candCard(d, chosenTeam, () => start(d.id, chosenTeam)));
-      }
-    }
+    // triés par popularité : les plus connus d'abord
+    for (const d of pickable(chosenTeam)) list.appendChild(candCard(d, chosenTeam, () => start(d.id, chosenTeam)));
+  }
+  function pickable(team) {
+    return CANDIDATES.filter((c) => !c.hidden && (c.team === team || c.neutral)).sort((a, b) => a.pop - b.pop);
   }
 
   // ── Menu en ligne : salle à code, matchmaking, sélection des candidats ──
@@ -246,13 +242,9 @@
     if (R.phase === 'pick') {
       $('#rm-ready').onclick = () => Net.send({ t: 'ready', on: !me.ready });
       const list = $('#rm-cands');
-      for (const cls of ['tank', 'dps', 'soutien']) {
-        const h = document.createElement('h3');
-        h.className = 'cls-title';
-        h.textContent = CLS_TITLES[cls];
-        list.appendChild(h);
-        const mate = R.players.find((p) => p.id !== Net.me && p.team === me.team && p.pick && CAND_BY_ID[p.pick].cls === cls);
-        for (const d of CANDIDATES.filter((c) => c.cls === cls && (c.team === me.team || c.neutral))) {
+      {
+        for (const d of pickable(me.team)) {
+          const mate = R.players.find((p) => p.id !== Net.me && p.team === me.team && p.pick && CAND_BY_ID[p.pick].cls === d.cls);
           const by = R.players.find((p) => p.pick === d.id);
           const mine = by && by.id === Net.me;
           const tag = mine ? 'votre choix' : by ? `pris par ${by.name}` : mate ? `classe prise par ${mate.name}` : '';
@@ -314,6 +306,45 @@
   }
 
   // ── Barre de sorts ──
+  // ── Infobulle des sorts : effet et statistiques actuelles (avec la puissance et la recharge du joueur) ──
+  const TYPE_LABEL = { skillshot: 'Projectile', nova: 'Zone autour de soi', blast: 'Zone à distance', zone: 'Zone persistante', dash: 'Bond',
+    shield: 'Bouclier', heal: 'Zone de soin', selfheal: 'Soin sur soi', regen: 'Récupération', globalheal: 'Soin global', haste: 'Accélération', cats: 'Invocation' };
+  function abStats(ab, p) {
+    const ap = p.st.ap, r = (v) => Math.round(v), out = [];
+    if (ab.dmg) out.push(['Dégâts', ab.type === 'cats' ? `${ab.n} × ${r(ab.dmg * ap)}` : r(ab.dmg * ap)]);
+    if (ab.type === 'zone') out.push(['Brûlure de zone', `${r(ab.dps * ap)} / s pendant ${ab.dur} s`]);
+    if (ab.dot) out.push(['Brûlure', `${r(ab.dot.dps * ap)} / s pendant ${ab.dot.dur} s`]);
+    if (ab.range) out.push(['Portée', ab.range]);
+    if (ab.radius) out.push(['Rayon', ab.radius]);
+    if (ab.type === 'heal') out.push(['Soin', `${r(ab.hps * ap)} / s pendant ${ab.dur} s`]);
+    if (ab.type === 'selfheal' || ab.type === 'globalheal') out.push(['Soin', `${r(ab.pct * 100)} % de la crédibilité max`]);
+    if (ab.type === 'regen') out.push(['Récupération', `${r(ab.pct * 100)} % en ${ab.dur} s`]);
+    if (ab.amount) out.push(['Bouclier', `${r(ab.amount * ap)} pendant ${ab.dur} s`]);
+    if (ab.shield) out.push(['Bouclier', r(ab.shield * ap)]);
+    if (ab.slow) out.push(['Ralentissement', `${r(ab.slow * 100)} % pendant ${ab.slowDur} s`]);
+    if (ab.stun) out.push(['Étourdissement', `${ab.stun} s`]);
+    if (ab.weaken) out.push(['Affaiblissement', `−${r(ab.weaken.pct * 100)} % dégâts et vitesse pendant ${ab.weaken.dur} s`]);
+    if (ab.type === 'haste' || ab.haste) out.push(['Vitesse', `+${r((ab.pct || ab.haste) * 100)} % pendant ${ab.dur} s`]);
+    if (ab.as) out.push(['Vitesse d’attaque', `+${r(ab.as * 100)} %`]);
+    if (ab.buff) out.push(['Dégâts', `+${r(ab.buff.dmg * 100)} % pendant ${ab.buff.dur} s`]);
+    if (ab.pierce) out.push(['Perforant', 'touche toutes les cibles sur sa ligne']);
+    out.push(['Recharge', `${(ab.cd * (1 - p.st.cdr)).toFixed(1).replace('.', ',')} s`]);
+    return out;
+  }
+  function showAbTip(el, k, i) {
+    const p = Game.S && Game.S.player;
+    if (!p) return;
+    const ab = p.def.abilities[k], tip = $('#ab-tip');
+    const locked = !Game.unlocked(p, k);
+    tip.innerHTML = `<div class="tt-h"><b>${spellKey(k, i)}</b> ${ab.name} <span>${TYPE_LABEL[ab.type] || ''}</span></div>
+      <div class="tt-d">${ab.desc}</div>
+      <table>${abStats(ab, p).map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>
+      ${locked ? `<div class="tt-l">🔒 Débloqué à ${CFG.unlock[k]} % dans les sondages (vous : ${p.I.toFixed(1).replace('.', ',')} %)</div>` : ''}`;
+    tip.classList.remove('hidden');
+    const r = el.getBoundingClientRect();
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, r.left + r.width / 2 - tip.offsetWidth / 2)) + 'px';
+    tip.style.top = (r.top - tip.offsetHeight - 10) + 'px';
+  }
   function buildAbilityBar() {
     const p = Game.S.player;
     const bar = $('#abilities');
@@ -323,7 +354,8 @@
       const el = document.createElement('button');
       el.className = 'ab';
       el.id = 'ab-' + k;
-      el.title = `${ab.name} — ${ab.desc} (recharge ${ab.cd} s)`;
+      el.onmouseenter = () => showAbTip(el, k, i);
+      el.onmouseleave = () => $('#ab-tip').classList.add('hidden');
       el.innerHTML = `<span class="key">${spellKey(k, i)}</span><span class="abn">${ab.name}</span><span class="cdv"></span><div class="cdo"></div><span class="lock">🔒 ${CFG.unlock[k]} %</span>`;
       el.onclick = () => castAuto(k);
       bar.appendChild(el);

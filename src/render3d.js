@@ -673,20 +673,20 @@ const R3 = (() => {
   // hs : coupe (long, bob, short, swept, messy, curly, curlyLong, balding, bald, shaved, tied)
   // out : tenue (suit, sweater, tracksuit, casual, trench, tweed, tux) ; tie / bow : cravate, nœud papillon
   const VOX = {
-    melenchon: { hair: 0xd9d9d9, hs: 'swept', glasses: 0x2a2a2a, suit: 0x22252c, tie: 0xc8202f, brow: 0xbfbfbf },
-    glucksmann: { hair: 0x6b5a4e, hs: 'short', stubble: 0x5a4a40, suit: 0x2a3142 },
+    melenchon: { hair: 0xd9d9d9, hs: 'swept', suit: 0x22252c, tie: 0xc8202f, brow: 0xbfbfbf, sash: 1 },
+    glucksmann: { hair: 0x6b5a4e, hs: 'balding', suit: 0x2a3142 },
     tondelier: { hair: 0x6a4026, hs: 'bob', suit: 0x3c9a4e, fem: 1 },
     lepen: { hair: 0xf0dc6e, hs: 'long', suit: 0x1d1d22, fem: 1 },
     philippe: { hair: 0x55524e, hs: 'balding', beard: 0x8a8682, streak: 0xeeeeee, glasses: 0x1a1a1a, suit: 0x3a3f4a, tie: 0x2a3a6a, h: 1.1 },
-    retailleau: { hair: 0xa8a8a8, hs: 'short', glasses: 0x111111, suit: 0x6a6d73, tie: 0x1f2f5a },
-    arthaud: { hair: 0x6e665c, hs: 'short', glasses: 0x2a2a2a, out: 'trench', suit: 0xc8b48a, fem: 1 },
+    retailleau: { hair: 0x1a1612, hs: 'short', glasses: 0x111111, suit: 0x6a6d73, tie: 0x1f2f5a, thin: 1 },
+    arthaud: { hair: 0x6e665c, hs: 'short', glasses: 0x2a2a2a, out: 'shirt', suit: 0x4a6a9a, fem: 1 },
     batho: { hair: 0xc8c0a8, hs: 'curly', suit: 0x24304a, fem: 1 },
     bouamrane: { hair: 0x2a2420, hs: 'balding', glasses: 0x333333, stubble: 0x8a8a8a, skin: 0xb07a55, suit: 0x27304a, tie: 0x22283a },
     cazeneuve: { hair: 0x9a9a9a, hs: 'balding', glasses: 0x6a6a6a, suit: 0x23283a, tie: 0x2a3550 },
     kazib: { hair: 0x1a1612, hs: 'shaved', beard: 0x1a1612, skin: 0xc08f6a, out: 'casual', suit: 0x1b1b1d, shirt: 0xf4f4f0 },
     labib: { hair: 0x1e1612, hs: 'curlyLong', skin: 0xd2a07c, out: 'tracksuit', suit: 0x1b1b1d, fem: 1 },
     roussel: { hair: 0x8a8a84, hs: 'messy', suit: 0x2b2f38 },
-    ruffin: { hair: 0x5a5550, hs: 'short', stubble: 0x5a5550, suit: 0x2b2f38 },
+    ruffin: { hair: 0x9a9a96, hs: 'mhair', out: 'sweater', suit: 0xc0282e, shirt: 0x5a7ab0 },
     attal: { hair: 0x1f1813, hs: 'messy', suit: 0x1d2440, h: 0.97 },
     becht: { hair: 0x2a221c, hs: 'short', suit: 0x22283a, tie: 0x2f55c4 },
     bertrand: { hair: 0xb8b8b8, hs: 'short', suit: 0x23283a, tie: 0x2a3a6a },
@@ -704,7 +704,7 @@ const R3 = (() => {
     markovic: { hair: 0x1f1612, hs: 'tied', out: 'tweed', suit: 0x1b1b1d, shirt: 0xd0287a, necklace: 0xd8b04a, fem: 1 },
     mikolajczak: { hair: 0x2a1d17, hs: 'curly', mustache: 0x2a1d17, out: 'casual', suit: 0x1b1b1d, shirt: 0x1b1b1d },
     polony: { hair: 0xd2693a, hs: 'curly', out: 'tweed', suit: 0x2a2a2a, shirt: 0xf4f0e6, fem: 1 },
-    riner: { hair: 0x111111, hs: 'shaved', skin: 0x6a4530, out: 'tux', suit: 0x111111, bow: 0x111111, h: 1.25 },
+    riner: { hair: 0x111111, hs: 'shaved', skin: 0x6a4530, out: 'gi', suit: 0xf6f6f2, h: 1.25 },
     verdier: { hair: 0x4a3426, hs: 'short', suit: 0x3b4252, tie: 0x5a2a2a },
   };
   const VSKIN = 0xf0c09a;
@@ -759,6 +759,11 @@ const R3 = (() => {
       case 'balding':
         back(14); sides(11);
         break;
+      case 'mhair':
+        // cheveux qui dessinent un M sur le front : golfes dégarnis aux tempes, pointe au milieu
+        add(33, 5, 30, 0, 32.5, -0.5); back(16); sides(10);
+        add(7, 4, 4, -12, 29, 12.6); add(9, 6, 4, 0, 28, 12.6); add(7, 4, 4, 12, 29, 12.6);
+        break;
       case 'shaved':
         head.add(vbox(H, 31, 1.6, 27, 0, 29.6, 0, { transparent: true, opacity: 0.55 }));
         break;
@@ -810,14 +815,24 @@ const R3 = (() => {
       f(4.4, 1.2, 1, 0, 17.5, 13.9);
     }
   }
+  function textPlane(text, color, w, h, x, y, z, ry) {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 100;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#' + color.toString(16).padStart(6, '0'); g.font = '900 86px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 128, 54);
+    const tex = new THREE.CanvasTexture(cv);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    m.position.set(x, y, z); m.rotation.y = ry || 0;
+    return m;
+  }
   function voxBody(inner, V) {
     const out = V.out || 'suit', jacket = V.suit || 0x2a2f3a, shirt = V.shirt || 0xf4f4f0;
-    const trousers = out === 'trench' || out === 'tweed' ? 0x26262c : out === 'sweater' || out === 'casual' ? 0x2c3440 : jacket;
+    const trousers = out === 'gi' ? jacket : out === 'trench' || out === 'tweed' ? 0x26262c : out === 'sweater' || out === 'casual' || out === 'shirt' ? 0x2c3440 : jacket;
     const legs = [], arms = [];
     for (const s of [-1, 1]) {
       const hip = new THREE.Group(); hip.position.set(s * 5.5, 22, 0);
       hip.add(vbox(trousers, 10, 22, 11, 0, -11, 0));
-      hip.add(vbox(out === 'tracksuit' ? 0xf4f4f0 : 0x141418, 10.4, 4, 13, 0, -20, 1));
+      hip.add(vbox(out === 'tracksuit' ? 0xf4f4f0 : out === 'gi' ? (V.skin || VSKIN) : 0x141418, 10.4, 4, 13, 0, -20, 1));
       inner.add(hip); legs.push(hip);
     }
     if (out === 'casual') {
@@ -835,7 +850,29 @@ const R3 = (() => {
       if (out === 'trench') inner.add(vbox(new THREE.Color(jacket).multiplyScalar(0.75).getHex(), 24.4, 2.2, 13.4, 0, 30, 0));
       if (out === 'tweed') for (let i = 0; i < 6; i++) inner.add(vbox(0xf4f0e6, 1, 1, 1, -9 + (i % 2) * 18, 26 + i * 3, 6.9));
     }
-    if (out === 'sweater') inner.add(vbox(shirt, 10, 2, 1, 0, 45, 6.8));
+    if (out === 'sweater') {
+      inner.add(vbox(shirt, 10, 2, 1, 0, 45, 6.8));
+      for (const s of [-1, 1]) { const cp = vbox(shirt, 4, 3, 1, s * 3, 44, 7); cp.rotation.z = s * 0.5; inner.add(cp); } // col de chemise
+    }
+    if (out === 'shirt') {
+      // chemise en jean : col, patte de boutonnage, poches
+      for (const s of [-1, 1]) { const cp = vbox(0x6f8cb8, 6, 4, 1.2, s * 3.6, 44, 7); cp.rotation.z = s * 0.5; inner.add(cp); inner.add(vbox(0x3e5a86, 5, 4, 1, s * 6, 38, 6.9)); }
+      inner.add(vbox(0x3e5a86, 1.4, 22, 1, 0, 34, 6.9));
+      for (let i = 0; i < 4; i++) inner.add(vbox(0xe8e2d0, 1, 1, 1, 0, 26 + i * 5, 7.4));
+    }
+    if (out === 'gi') {
+      // kimono de judo : revers croisés, ceinture noire, FRA dans le dos
+      for (const s of [-1, 1]) { const lap = vbox(0xdedad0, 4, 22, 1.4, s * 3.5, 35, 7); lap.rotation.z = -s * 0.45; inner.add(lap); }
+      inner.add(vbox(0x111111, 24.6, 3, 13.6, 0, 26, 0));
+      inner.add(vbox(0x111111, 3, 8, 1.4, 4, 21, 7.2));
+      inner.add(textPlane('FRA', 0x1f3f8f, 18, 7, 0, 33, -6.7, Math.PI));
+    }
+    if (V.sash) {
+      // écharpe tricolore en bandoulière
+      [0x2347a8, 0xf4f4f0, 0xd7263d].forEach((col, i) => {
+        for (const z of [7.3, -7.3]) { const b = vbox(col, 2.6, 34, 1, -2.6 + i * 2.6, 35, z); b.rotation.z = z > 0 ? 0.62 : -0.62; inner.add(b); }
+      });
+    }
     if (out === 'tracksuit') {
       inner.add(vbox(0xf4f4f0, 1, 22, 1, 0, 34, 6.8));
       inner.add(vbox(jacket, 12, 3, 13.4, 0, 45.5, 0));
@@ -851,10 +888,14 @@ const R3 = (() => {
     }
     return { legs, arms };
   }
-  function buildVoxel(c, V) {
+  function buildVoxel(c, V0) {
+    // cravate bleue pour les hommes de droite, rouge pour ceux de gauche
+    const camp = c.def && c.def.team;
+    const V = V0.tie && !V0.fem && (camp === 'droite' || camp === 'gauche') ? { ...V0, tie: camp === 'droite' ? 0x1f4fbf : 0xc8202f } : V0;
     const root = new THREE.Group();
     const body = new THREE.Group(); root.add(body);
     const inner = new THREE.Group(); inner.scale.setScalar(1.25 * (V.h || 1)); body.add(inner);
+    if (V.thin) { inner.scale.x *= 0.82; inner.scale.z *= 0.82; }
     const { legs, arms } = voxBody(inner, V);
     const head = new THREE.Group(); head.position.set(0, 46, 0); inner.add(head);
     voxFace(head, V);

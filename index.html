@@ -194,6 +194,13 @@
   .help-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
   .help-grid > div { background: #161c24; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.45; color: #c9d1db; }
   .help-grid > div > b:first-child { display: block; color: #fff; font-size: 14px; margin-bottom: 4px; }
+  #ab-tip { position: fixed; z-index: 40; width: 300px; background: rgba(14,18,24,.97); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: #c9d1db; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+  #ab-tip.hidden { display: none; }
+  #ab-tip .tt-h { font-weight: 800; color: #fff; font-size: 14px; margin-bottom: 4px; } #ab-tip .tt-h b { color: var(--gold); margin-right: 4px; }
+  #ab-tip .tt-h span { font-weight: 600; font-size: 11px; color: var(--mute); margin-left: 6px; }
+  #ab-tip .tt-d { margin-bottom: 6px; } #ab-tip table { width: 100%; border-collapse: collapse; }
+  #ab-tip td { padding: 2px 0; border-top: 1px solid #222a35; } #ab-tip td:last-child { text-align: right; color: #fff; font-weight: 600; }
+  #ab-tip .tt-l { margin-top: 6px; color: var(--gold); }
   #pause { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); }
 
   #end { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(5,7,10,.82); padding: 16px; }
@@ -308,6 +315,7 @@
     </div>
   </div>
 </div>
+<div id="ab-tip" class="hidden"></div>
 <div id="toast"></div>
 
 <div id="end" class="hidden">
