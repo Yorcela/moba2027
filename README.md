@@ -92,7 +92,7 @@ Rien n’est déployé publiquement pour l’instant.
 | **Récolte** | Il faut rester **immobile** : 12 s de son côté de la carte, 7 s du côté adverse, 10 s dans les quartiers neutres. Bouger annule la récolte, qui repart de zéro. |
 | **Programme** | Au QG (P, puis flèches et Entrée, ou 1 à 9), on adopte des **mesures** qui ne se consomment pas : chacune **s’améliore jusqu’au niveau 5**, de plus en plus chère et puissante. Leurs noms dépendent du camp : sociales, écologiques et anti-libérales à gauche (Taxe sur les superprofits, Hôpital public, Planification écologique…), sécuritaires, régaliennes et budgétaires à droite (Peines planchers, Remboursement de la dette, Dissuasion nucléaire…). Catégories : polémique (DPS), résistance (tank), sorts, recharge, vitesse et **finances** (plus de dons par seconde, ou réduction sur tous les achats). 6 mesures au maximum. |
 | **Matériel de campagne** | T-shirts (+PV), casquettes (+vitesse), banderoles (+dégâts), flyers (+1 militant par vague), affiches (bulletins qui rapportent plus de sondage). Il renforce tous les militants du camp, 3 niveaux de plus en plus chers. |
-| **Victoire** | Il faut gagner la **présidentielle** (Élysée) **et** avoir la majorité dans **au moins une chambre** (Assemblée ou Sénat). Sinon c’est la cohabitation, et la partie continue. |
+| **Victoire** | Il faut gagner la **présidentielle** (Élysée) **et** avoir la majorité dans **au moins une chambre** (Assemblée ou Sénat). Sinon c’est la cohabitation, et la partie continue. Un camp qui réunit **500 parrainages** (mairies, Sénat) gagne aussi immédiatement. |
 | **Durée** | 5, 10 ou 15 minutes, au choix dans le menu. À la fin du temps, le candidat **en tête des sondages** l’emporte pour son camp et il est élu. |
 
 ## Candidats

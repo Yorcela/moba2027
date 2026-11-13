@@ -32,6 +32,7 @@ const CFG = {
   mairieRespawn: 55,
   meetingRespawn: 45,
   recallTime: 4,
+  parrainagesWin: 500,   // un camp qui réunit 500 parrainages gagne la partie
   respawnMax: 15,        // délai de retour max (1 s par point de sondage)
   timeLimit: 10 * 60,    // durée de la partie : 5, 10 ou 15 min (choisie dans le menu)
   durations: [5, 10, 15],

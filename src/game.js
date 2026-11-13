@@ -346,6 +346,10 @@ const Game = (() => {
   function elyseeFull(team) { const o = S.obj.mid; return team === 'gauche' ? o.gauge >= o.max : o.gauge <= -o.max; }
   function checkVictory() {
     if (S.over) return;
+    // 500 parrainages réunis : la candidature du camp est imparable
+    for (const team of ['gauche', 'droite']) {
+      if (S.teams[team].parrainages >= CFG.parrainagesWin) return endGame(team, `${CFG.parrainagesWin} parrainages réunis`);
+    }
     for (const team of ['gauche', 'droite']) {
       if (!elyseeFull(team)) continue;
       const an = S.obj.top.ctrl === team, sen = S.obj.bot.ctrl === team;

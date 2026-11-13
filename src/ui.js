@@ -538,7 +538,7 @@
         : `${Math.abs(o.gauge)}/${o.max} bulletins` + (open ? ' · voie ouverte' : '');
     }
     $('#poll-list').innerHTML = pollRows(S);
-    $('#parr').textContent = `Parrainages — gauche : ${Math.floor(S.teams.gauche.parrainages)} · droite : ${Math.floor(S.teams.droite.parrainages)}`;
+    $('#parr').textContent = `Parrainages (victoire à ${CFG.parrainagesWin}) — gauche : ${Math.floor(S.teams.gauche.parrainages)} · droite : ${Math.floor(S.teams.droite.parrainages)}`;
     $('#me-hp').style.width = U.clamp(p.hp / p.st.maxHp, 0, 1) * 100 + '%';
     $('#me-hpt').textContent = p.dead ? `Retour dans ${Math.ceil(p.respawnAt - S.t)} s` : `Crédibilité ${Math.ceil(p.hp)} / ${Math.ceil(p.st.maxHp)}`;
     $('#me-dons').textContent = Math.floor(p.dons) + ' €';
