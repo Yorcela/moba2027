@@ -156,3 +156,6 @@ Tous les équilibrages se règlent dans `CFG` (`src/data.js`).
 ## Crédits des assets
 
 - Immeubles : [City Kit (Commercial)](https://kenney.nl/assets/city-kit-commercial) de **Kenney**, sous licence CC0 (voir `assets/kenney/city-commercial/License.txt`). Les modèles sont chargés avec `GLTFLoader` (three@0.128.0, jsdelivr) et teintés selon le quartier. Si les modèles ne se chargent pas, par exemple quand le jeu est ouvert en `file://`, les blocs simples restent affichés. Paramètres d'URL : `?blocs=1` force la ville simplifiée, et `?ombres=1` active les ombres des immeubles (plus coûteuses).
+- Mairies : *Town House*, *Big Building* et *Building* de **Quaternius** (CC0, via [Poly Pizza](https://poly.pizza)), dans `assets/quaternius/`.
+- Scènes de meeting : *Stage* et *Concert Stage* (×2) de **iPoly3D** (CC0, via Poly Pizza), recolorées en violet, dans `assets/ipoly3d/`.
+- La campagne qui entoure la ville (champs, fermes, bottes de foin, haies, vaches) et Marine Le Pen en style voxel (essai) sont construites en code.

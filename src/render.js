@@ -38,6 +38,8 @@ const Render = (() => {
   }
 
   let blocksCache = null;
+  const RURAL = 960;
+  const CROPS = ['#cdb45a', '#7fa64a', '#8a6a48', '#a3b85a']; // blé, prairie, labours, colza
   function blockList() {
     if (blocksCache) return blocksCache;
     const rnd = seeded(2027);
@@ -51,7 +53,11 @@ const Render = (() => {
         if (avoid.some((p) => Math.hypot(p.x - cx, p.y - cy) < 150)) continue;
         if (Math.hypot(cx, cy) < 280) continue;
         const w = 40 + rnd() * 24, h = 40 + rnd() * 24;
-        out.push({ x: cx, y: cy, w, h, park: rnd() < 0.12, hgt: 30 + rnd() * 80 });
+        const b = { x: cx, y: cy, w, h, park: rnd() < 0.12, hgt: 30 + rnd() * 80 };
+        // la campagne entoure la ville : au-delà de RURAL, les pâtés deviennent des champs et des fermes
+        const hsh = Math.abs(Math.sin(cx * 12.9898 + cy * 78.233) * 43758.5453) % 1;
+        if (Math.hypot(cx, cy) > RURAL) { b.rural = true; b.park = false; b.crop = Math.floor(hsh * 4); b.farm = hsh > 0.72; }
+        out.push(b);
       }
     }
     blocksCache = out;
@@ -79,8 +85,20 @@ const Render = (() => {
       g.arc(0, 0, MAP.R, -s.a1 * MAP.D2R, -s.a0 * MAP.D2R);
       g.closePath(); g.fill();
     }
+    // campagne : couronne verte autour de la ville
+    g.fillStyle = 'rgba(96,130,64,0.55)';
+    g.beginPath(); g.arc(0, 0, MAP.R, 0, Math.PI * 2); g.arc(0, 0, RURAL - 40, 0, Math.PI * 2, true); g.fill();
     // immeubles (pâtés de maisons) — en 3D ils sont extrudés, ici seulement leur emprise
     for (const b of blockList()) {
+      if (b.rural) {
+        // champ cultivé, avec ses sillons
+        g.fillStyle = CROPS[b.crop];
+        g.fillRect(b.x - b.w / 2 - 6, b.y - b.h / 2 - 6, b.w + 12, b.h + 12);
+        g.strokeStyle = 'rgba(0,0,0,0.12)'; g.lineWidth = 2;
+        for (let k = -b.w / 2; k < b.w / 2 + 6; k += 9) { g.beginPath(); g.moveTo(b.x + k, b.y - b.h / 2 - 6); g.lineTo(b.x + k, b.y + b.h / 2 + 6); g.stroke(); }
+        if (blocks && b.farm) { g.fillStyle = '#b5523a'; g.fillRect(b.x - 10, b.y - 8, 20, 16); }
+        continue;
+      }
       if (blocks) {
         g.fillStyle = COL.block; g.strokeStyle = COL.blockEdge; g.lineWidth = 2;
         roundRect(g, b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, 6); g.fill(); g.stroke();

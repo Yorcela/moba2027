@@ -134,9 +134,57 @@ const R3 = (() => {
     }
   }
 
+  // ── Campagne autour de la ville : fermes, bottes de foin, haies, vaches ──
+  function buildCountryside(fields) {
+    const rnd = Render.seeded(1789);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3();
+    const bales = new THREE.InstancedMesh(G.cyl, mat(0xd8b85a, { roughness: 1 }), fields.length * 4);
+    const trunks = new THREE.InstancedMesh(G.cylLo, mat(0x5b4030), fields.length * 4);
+    const crowns = new THREE.InstancedMesh(G.sphLo, mat(0x4f8a3c), fields.length * 4);
+    const cows = new THREE.InstancedMesh(G.box, mat(0xf4f1ea), fields.length * 3);
+    const spots = new THREE.InstancedMesh(G.box, mat(0x2a2a2a), fields.length * 3);
+    let nb = 0, nt = 0, nc = 0;
+    const put = (im, i, x, y, z, sx, sy, sz, rx, ry, rz) => {
+      q.setFromEuler(e.set(rx || 0, ry || 0, rz || 0)); im.setMatrixAt(i, m4.compose(p.set(x, y, z), q, sc.set(sx, sy, sz)));
+    };
+    for (const b of fields) {
+      const ry = rnd() * Math.PI;
+      if (b.farm) {
+        // ferme : murs crème, toit de tuiles, grange rouge
+        const g = new THREE.Group(); g.position.set(b.x, 0, b.y); g.rotation.y = ry;
+        g.add(mesh(G.box, mat(0xeee3c8), 30, 18, 20, -6, 9, 0));
+        const r = mesh(G.prism, mat(0xb5523a), 1, 1, 1, -6, 24, 0); r.rotation.z = Math.PI / 2; r.scale.set(9, 32, 14); g.add(r);
+        g.add(mesh(G.box, mat(0x9a3b2e), 18, 22, 18, 18, 11, 4));
+        const r2 = mesh(G.prism, mat(0x5a4a3a), 1, 1, 1, 18, 26, 4); r2.rotation.z = Math.PI / 2; r2.scale.set(7, 20, 13); g.add(r2);
+        g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+        scene.add(g);
+      } else if (b.crop === 0) {
+        // blé moissonné : bottes de foin rondes couchées
+        for (let k = 0; k < 3; k++) put(bales, nb++, b.x + (rnd() - 0.5) * b.w * 0.7, 6, b.y + (rnd() - 0.5) * b.h * 0.7, 6, 9, 6, 0, rnd() * 3, Math.PI / 2);
+      } else if (b.crop === 1) {
+        // prairie : quelques vaches
+        for (let k = 0; k < 2; k++) {
+          const x = b.x + (rnd() - 0.5) * b.w * 0.6, z = b.y + (rnd() - 0.5) * b.h * 0.6, a = rnd() * 6;
+          put(cows, nc, x, 7, z, 14, 8, 7, 0, a, 0);
+          put(spots, nc++, x + Math.cos(a) * 2, 8.5, z - Math.sin(a) * 2, 5, 5.5, 7.4, 0, a, 0);
+        }
+      }
+      // haie d'arbres sur un bord du champ
+      const n = 1 + Math.floor(rnd() * 3);
+      for (let k = 0; k < n; k++) {
+        const x = b.x - b.w / 2 - 4 + rnd() * (b.w + 8), z = b.y + (rnd() < 0.5 ? -1 : 1) * (b.h / 2 + 4), s = 0.8 + rnd() * 0.5;
+        put(trunks, nt, x, 9 * s, z, 2.5 * s, 18 * s, 2.5 * s);
+        put(crowns, nt++, x, 24 * s, z, 11 * s, 12 * s, 11 * s);
+      }
+    }
+    bales.count = nb; trunks.count = crowns.count = nt; cows.count = spots.count = nc;
+    for (const im of [bales, trunks, crowns, cows, spots]) { im.castShadow = true; scene.add(im); }
+  }
+
   function buildCity() {
     const blocks = Render.blockList();
-    const houses = blocks.filter((b) => !b.park);
+    buildCountryside(blocks.filter((b) => b.rural));
+    const houses = blocks.filter((b) => !b.park && !b.rural);
     const parks = blocks.filter((b) => b.park);
     const im = new THREE.InstancedMesh(G.box, new THREE.MeshStandardMaterial({ roughness: 0.85 }), houses.length);
     const roof = new THREE.InstancedMesh(G.box, new THREE.MeshStandardMaterial({ roughness: 0.6 }), houses.length);
@@ -277,6 +325,64 @@ const R3 = (() => {
     return g;
   }
 
+  // ── Mairies (Quaternius, CC0) et scènes de meeting (iPoly3D, CC0) en glTF, avec repli procédural ──
+  let gltfLoader = null;
+  async function getLoader() {
+    if (!THREE.GLTFLoader) await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js');
+    return gltfLoader || (gltfLoader = new THREE.GLTFLoader());
+  }
+  // place un modèle : posé au sol, centré, mis à l'échelle sur sa plus grande dimension horizontale
+  function fitModel(src, size, rotY) {
+    const o = src.clone(true);
+    o.rotation.y = rotY || 0;
+    o.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(o), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+    const k = size / Math.max(sz.x, sz.z);
+    const wrap = new THREE.Group();
+    o.position.set(-c.x, -box.min.y, -c.z);
+    wrap.add(o); wrap.scale.setScalar(k);
+    o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    return wrap;
+  }
+  async function upgradeCamps(groups) {
+    if (location.protocol === 'file:' || /[?&]blocs=1/.test(location.search)) return;
+    try {
+      const L = await getLoader();
+      const load = (f) => L.loadAsync(f).then((g) => g.scene);
+      const [mairies, scenes] = await Promise.all([
+        Promise.all(['a', 'b', 'c'].map((v) => load(`assets/quaternius/mairie-${v}.glb`))),
+        Promise.all(['a', 'b', 'c'].map((v) => load(`assets/ipoly3d/scene-${v}.glb`))),
+      ]);
+      let nm = 0, ns = 0;
+      MAP.campDefs.forEach(([type], i) => {
+        const g = groups[i], u = g.userData;
+        const keep = new Set([u.flag, u.windows, u.crowd, u.banner]);
+        for (const ch of [...g.children]) if (!keep.has(ch)) g.remove(ch);
+        if (type === 'mairie') {
+          g.add(fitModel(mairies[nm % 3], 115, 0));
+          nm++;
+          // lanterne au-dessus de la porte : allumée quand la mairie est disponible
+          u.windows.scale.set(12, 8, 4); u.windows.position.set(0, 34, 38);
+          if (u.flag) u.flag.position.set(48, 70, 0);
+        } else {
+          const st = fitModel(scenes[ns % 3], 135, 0);
+          st.position.z = -18;
+          // les scènes d'origine sont noires : plancher et fond violets façon meeting
+          st.traverse((m) => {
+            if (!m.isMesh) return;
+            const c = m.material.color;
+            if (c && c.r + c.g + c.b < 0.3) m.material = mat(0x5a3d7a, { roughness: 0.6 });
+          });
+          u.banner.position.set(0, 70, -60);
+          g.add(st);
+          ns++;
+        }
+      });
+    } catch (e) {
+      console.warn('Modèles des mairies / meetings indisponibles, version simple conservée', e);
+    }
+  }
+
   function buildCamp(type, pos) {
     const g = new THREE.Group();
     g.position.set(pos.x, 0, pos.y);
@@ -289,12 +395,14 @@ const R3 = (() => {
       g.add(parts.windows);
       g.add(mesh(G.box, mat(0x5a5040), 16, 26, 4, 0, 13, 32));
       const f = flag(60); f.position.set(38, 52, 0); g.add(f);
+      parts.flag = f;
     } else {
       const stage = new THREE.Mesh(new THREE.CylinderGeometry(56, 56, 12, 24, 1, false, Math.PI / 2, Math.PI), mat(0x5a3d7a));
       stage.position.set(0, 6, -10); stage.castShadow = stage.receiveShadow = true; g.add(stage);
       g.add(mesh(G.box, mat(0xffd34d), 14, 22, 10, 0, 23, -30));
       g.add(mesh(G.cylLo, mat(0x333333), 1.2, 20, 1.2, 0, 44, -30));
-      g.add(mesh(G.box, mat(0xffd34d), 110, 30, 3, 0, 52, -62));
+      parts.banner = mesh(G.box, mat(0xffd34d), 110, 30, 3, 0, 52, -62);
+      g.add(parts.banner);
       const crowd = new THREE.Group();
       const rnd = Render.seeded(pos.x * 7 + pos.y * 13);
       const cols = [0xe0384b, 0x2f6fe0, 0xf1f1f1, 0x4caf72, 0xffd34d];
@@ -319,6 +427,7 @@ const R3 = (() => {
       camps: MAP.campDefs.map(([type, p]) => buildCamp(type, p)),
       flags: [],
     };
+    upgradeCamps(st.camps);
     scene.traverse((o) => { if (o.userData && o.userData.cloth) st.flags.push(o.userData.cloth); });
     return st;
   }
@@ -329,7 +438,7 @@ const R3 = (() => {
     melenchon: { hair: 0xe6e6e6, style: 'swept', suit: 0x2c2c34, shirt: 0x2c2c34, collar: true, pin: 0xd7263d, brows: 0xd0d0d0, browTilt: 0.25, nose: 1.25, mouth: 'open', height: 1 },
     glucksmann: { hair: 0x2b201a, style: 'messy', suit: 0x1f2a44, shirt: 0xffffff, stubble: 0x3a2e28, pin: 0x2f55c4, brows: 0x2b201a, browTilt: -0.1, nose: 1.1, mouth: 'smile', height: 1.04 },
     tondelier: { hair: 0x4a2c1f, style: 'long', suit: 0x3c9a4e, shirt: 0xf2efe6, pin: 0x9be28f, brows: 0x4a2c1f, browTilt: -0.1, nose: 0.9, mouth: 'smile', height: 0.95, lips: 0xc0505a },
-    lepen: { hair: 0xe9cf86, style: 'long', suit: 0x1e2a5a, shirt: 0xf2efe6, pin: 0x2f55c4, brows: 0xc9a85e, browTilt: 0, nose: 1, mouth: 'smile', height: 0.98, lips: 0xb84a55 },
+    lepen: { voxel: true, hair: 0xf0dc6e, style: 'long', suit: 0x1e2a5a, shirt: 0xf2efe6, pin: 0x2f55c4, brows: 0xc9a85e, browTilt: 0, nose: 1, mouth: 'smile', height: 0.98, lips: 0xb84a55 },
     philippe: { hair: 0x3a2a22, style: 'short', suit: 0x23324f, shirt: 0xffffff, tie: 0x3f6fd8, beard: 0x3a2a22, beardStreak: 0xe8e8e8, brows: 0x3a2a22, browTilt: 0.05, nose: 1.1, mouth: 'flat', height: 1.12 },
     retailleau: { hair: 0xb8b8b8, style: 'short', suit: 0x2a2f3a, shirt: 0xffffff, tie: 0x1f3f8f, glasses: true, brows: 0x8a8a8a, browTilt: 0.35, nose: 1.05, mouth: 'flat', height: 1 },
   };
@@ -339,8 +448,73 @@ const R3 = (() => {
     const brows = new THREE.Color(l.hair || 0x333333).multiplyScalar(0.8).getHex();
     return { shirt: 0xf2efe6, brows, browTilt: 0, nose: 1, mouth: l.fem ? 'smile' : 'flat', height: 1, lips: l.fem ? 0xb84a55 : null, ...l };
   }
+  // ── Candidat en style voxel (essai : Marine Le Pen, d'après l'image de référence) ──
+  // tout en pavés : grosse tête cubique, cheveux en blocs, tailleur, col blanc, poignets blancs
+  function buildVoxel(c, L) {
+    const V = (color, sx, sy, sz, x, y, z) => { const m = mesh(G.box, mat(color, { roughness: 0.9 }), sx, sy, sz, x, y, z); m.castShadow = true; return m; };
+    const SKIN_V = 0xf0c09a, suit = L.suit === 0x1e2a5a ? 0x1d1d22 : L.suit, hair = L.hair, white = 0xf4f4f0;
+    const root = new THREE.Group();
+    const body = new THREE.Group(); root.add(body);
+    const inner = new THREE.Group(); inner.scale.setScalar(1.25 * (L.height || 1)); body.add(inner);
+    // jambes (pivot à la hanche)
+    const legs = [];
+    for (const s of [-1, 1]) {
+      const hip = new THREE.Group(); hip.position.set(s * 5.5, 22, 0);
+      hip.add(V(suit, 10, 22, 11, 0, -11, 0));
+      hip.add(V(0x141418, 10.4, 4, 13, 0, -20, 1)); // chaussures
+      inner.add(hip); legs.push(hip);
+    }
+    // buste : veste, chemise blanche en V
+    inner.add(V(suit, 24, 24, 13, 0, 34, 0));
+    inner.add(V(white, 8, 9, 1, 0, 41.5, 6.8));
+    for (const s of [-1, 1]) { const lap = V(suit, 5, 11, 1.2, s * 4.2, 40, 7.1); lap.rotation.z = s * 0.45; inner.add(lap); }
+    // bras (pivot à l'épaule) : manche, poignet blanc, main
+    const arms = [];
+    for (const s of [-1, 1]) {
+      const sh = new THREE.Group(); sh.position.set(s * 16, 44, 0);
+      sh.add(V(suit, 8, 18, 9, 0, -8, 0));
+      sh.add(V(white, 8.6, 3, 9.6, 0, -17.5, 0));
+      sh.add(V(SKIN_V, 8, 7, 8, 0, -22, 0));
+      inner.add(sh); arms.push(sh);
+    }
+    // tête : gros cube, visage plat
+    const head = new THREE.Group(); head.position.set(0, 46, 0); inner.add(head);
+    head.add(V(SKIN_V, 30, 28, 26, 0, 15, 0));
+    for (const s of [-1, 1]) {
+      head.add(V(0x2a1a1e, 3.6, 5, 1, s * 6.5, 16, 13.2)); // yeux
+      head.add(V(0xffffff, 1.4, 1.4, 1, s * 6.5 + 0.9, 17.6, 13.6)); // reflet
+      head.add(V(0xf2a0aa, 5, 2.4, 1, s * 9.5, 11.2, 13.1)); // joues roses
+      head.add(V(SKIN_V, 3.5, 6, 5, s * 16.6, 14, 1)); // oreilles
+      head.add(V(0xffffff, 1.8, 2, 1.8, s * 17.2, 9.6, 2.5)); // boucles d'oreilles
+    }
+    head.add(V(0x9a5a50, 3.5, 1.3, 1, 0, 8.6, 13.1)); // bouche
+    // cheveux : calotte à gradins, mèches sur le front, cheveux longs sur les côtés et dans le dos
+    head.add(V(hair, 33, 8, 30, 0, 30, -0.5));
+    head.add(V(hair, 30, 3, 27, 0, 35, -0.5));
+    head.add(V(hair, 26, 2, 23, 0, 37.4, -0.5));
+    head.add(V(hair, 32, 5, 4, 0, 25, 12.6)); // frange
+    head.add(V(hair, 6, 3, 4, -9, 21.6, 12.6));
+    head.add(V(hair, 4, 3, 4, 7, 22, 12.6));
+    for (const s of [-1, 1]) {
+      head.add(V(hair, 5, 34, 26, s * 16.6, 13, -1)); // côtés, longs jusqu'aux épaules
+      head.add(V(hair, 4, 26, 4, s * 13.4, 15, 12.6)); // mèches qui encadrent le visage
+    }
+    head.add(V(hair, 33, 36, 5, 0, 13, -13.5)); // dos
+    const ring = new THREE.Mesh(new THREE.RingGeometry(26, 33, 40), new THREE.MeshBasicMaterial({ color: hex(TEAMS[c.team].color), transparent: true, opacity: 0.9 }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 1.5; root.add(ring);
+    if (c.isPlayer) {
+      const pr = new THREE.Mesh(new THREE.RingGeometry(36, 41, 40), new THREE.MeshBasicMaterial({ color: 0xffd34d }));
+      pr.rotation.x = -Math.PI / 2; pr.position.y = 1.6; root.add(pr);
+    }
+    const shield = new THREE.Mesh(G.sph, new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, emissive: 0x88aaff, emissiveIntensity: 0.4, depthWrite: false }));
+    shield.scale.set(42, 60, 42); shield.position.y = 50; shield.visible = false; root.add(shield);
+    root.userData = { body, head, arms, legs, shield, phase: Math.random() * 6, px: c.x, py: c.y, face: 0 };
+    return root;
+  }
+
   function buildCandidate(c) {
     const L = LOOK[c.def.id] || lookFrom(c.def.look || {});
+    if (L.voxel) return buildVoxel(c, L);
     const root = new THREE.Group();
     const body = new THREE.Group();
     root.add(body);
