@@ -49,7 +49,7 @@
   .players li.gauche { border-color: var(--g); } .players li.droite { border-color: var(--d); }
   .players li.empty { color: var(--mute); font-style: italic; }
   .pl-n { font-weight: 700; } .pl-t, .pl-p { color: var(--mute); font-size: 13px; }
-  .cands-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+  .cands-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
   .cand-card:disabled { opacity: .4; cursor: not-allowed; transform: none; }
   .cand-card.picked { border-color: var(--gold) !important; background: rgba(255,211,77,.08); }
   .cand-card .taken { font-size: 11px; font-weight: 700; color: var(--gold); background: #2b2a1c; border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
@@ -85,9 +85,12 @@
   .team-btn { min-width: 200px; padding: 14px 20px; border-radius: 12px; border: 2px solid var(--line); background: var(--panel); font-weight: 800; font-size: 18px; }
   .team-btn.gauche { border-color: var(--g); } .team-btn.droite { border-color: var(--d); }
   .team-btn.gauche.on { background: var(--g); } .team-btn.droite.on { background: var(--d); }
-  #pick-cands { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+  #pick-cands { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
   .hint { text-align: center; color: var(--mute); grid-column: 1 / -1; }
-  .cand-card { display: flex; gap: 12px; text-align: left; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 14px; transition: transform .12s, border-color .12s; }
+  .cand-card { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 12px 8px 8px; transition: transform .12s, border-color .12s; position: relative; }
+  .cand-card .cc-name { font-weight: 800; font-size: 14px; line-height: 1.2; min-height: 34px; display: flex; align-items: center; }
+  .cand-card .cc-full { width: 100%; max-width: 170px; aspect-ratio: 220 / 300; object-fit: contain; display: block; }
+  .cand-card .taken { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); margin: 0; white-space: nowrap; }
   .cand-card:hover { transform: translateY(-2px); }
   .cand-card.gauche:hover { border-color: var(--g); } .cand-card.droite:hover { border-color: var(--d); }
   .avatar { flex: 0 0 auto; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 17px; border: 4px solid; }

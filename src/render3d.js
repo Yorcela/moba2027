@@ -1247,15 +1247,16 @@ const R3 = (() => {
   // ── Portraits voxel (menu, HUD) : rendu hors écran, mis en cache ──
   let pr = null;
   const portraits = new Map();
-  function portrait(id, team) {
-    const key = id + '|' + team;
+  // full : personnage entier (sélection) ; sinon tête et épaules (HUD)
+  function portrait(id, team, full) {
+    const key = id + '|' + team + (full ? '|full' : '');
     if (portraits.has(key)) return portraits.get(key);
     const V = VOX[id];
     if (!V) return null;
     if (!pr) {
       const canvas = document.createElement('canvas');
       const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
-      r.setSize(160, 160, false);
+      r.setSize(160, 160, false); r.setPixelRatio(1);
       const sc = new THREE.Scene();
       sc.add(new THREE.HemisphereLight(0xffffff, 0x8a8a9a, 0.75));
       const d = new THREE.DirectionalLight(0xffffff, 0.75); d.position.set(60, 120, 160); sc.add(d);
@@ -1267,8 +1268,17 @@ const R3 = (() => {
     o.traverse((m) => { if (m.isMesh && m.geometry.type === 'RingGeometry') m.visible = false; });
     pr.sc.add(o);
     const h = 1.25 * (V.h || 1);
-    // cadrage tête et épaules, légèrement de trois quarts
-    pr.cam.position.set(26 * h, 80 * h, 82 * h); pr.cam.lookAt(0, 72 * h, 0);
+    if (full) {
+      // personnage entier, de trois quarts, cadré à sa taille pour remplir la vignette
+      pr.r.setSize(220, 300, false); pr.cam.aspect = 220 / 300; pr.cam.updateProjectionMatrix();
+      const H = 104 * (V.h || 1), d = (H * 1.08) / (2 * Math.tan((15 * Math.PI) / 180));
+      pr.cam.position.set(d * 0.26, H * 0.62, d * 0.97); pr.cam.lookAt(0, H * 0.5, 0);
+      o.rotation.y = 0.35;
+    } else {
+      pr.r.setSize(160, 160, false); pr.cam.aspect = 1; pr.cam.updateProjectionMatrix();
+      // cadrage tête et épaules, légèrement de trois quarts
+      pr.cam.position.set(26 * h, 80 * h, 82 * h); pr.cam.lookAt(0, 72 * h, 0);
+    }
     pr.r.render(pr.sc, pr.cam);
     const url = pr.r.domElement.toDataURL('image/png');
     pr.sc.remove(o);

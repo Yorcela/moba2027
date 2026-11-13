@@ -72,13 +72,14 @@
     card.dataset.id = d.id;
     const ab = d.abilities;
     card.title = ['Q', 'W', 'E', 'R'].map((k, i) => `${spellKey(k, i)} ${ab[k].name} — ${ab[k].desc}`).join('\n');
+    // grand avatar voxel en pied et nom au-dessus ; le détail des sorts reste dans l'infobulle
+    card.title = `${d.name} — ${d.party} · ${CLASS_NAMES[d.cls]} · ${ROLE_NAMES[d.role]}${d.neutral ? ' · neutre, plus faible' : ''}\n` + card.title;
+    let url = null;
+    try { url = R3.portrait(d.id, team === 'droite' ? 'droite' : 'gauche', true); } catch (e) { /* WebGL indisponible */ }
     card.innerHTML = `
-      ${avatarHTML(d, team)}
-      <div class="cc-body">
-        <div class="cc-name">${d.name}${d.neutral ? ' <span class="neu">neutre · plus faible</span>' : ''}${extra && extra.tag ? ` <span class="taken">${esc(extra.tag)}</span>` : ''}</div>
-        <div class="cc-meta">${d.party} · ${CLASS_NAMES[d.cls]} · ${ROLE_NAMES[d.role]}</div>
-        <ul>${['Q', 'W', 'E', 'R'].map((k, i) => `<li><b>${spellKey(k, i)}</b> ${ab[k].name} <span>— ${ab[k].desc}</span></li>`).join('')}</ul>
-      </div>`;
+      <div class="cc-name">${d.name}</div>
+      ${url ? `<img class="cc-full" src="${url}" alt="">` : avatarHTML(d, team)}
+      ${extra && extra.tag ? `<span class="taken">${esc(extra.tag)}</span>` : ''}`;
     if (extra && extra.disabled) card.disabled = true;
     card.onclick = onClick;
     return card;
