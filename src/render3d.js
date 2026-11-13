@@ -280,15 +280,20 @@ const R3 = (() => {
     retailleau: { hair: 0xb8b8b8, style: 'short', suit: 0x2a2f3a, shirt: 0xffffff, tie: 0x1f3f8f, glasses: true, brows: 0x8a8a8a, browTilt: 0.35, nose: 1.05, mouth: 'flat', height: 1 },
   };
 
+  // apparence par défaut à partir de quelques traits (candidats ajoutés)
+  function lookFrom(l) {
+    const brows = new THREE.Color(l.hair || 0x333333).multiplyScalar(0.8).getHex();
+    return { shirt: 0xf2efe6, brows, browTilt: 0, nose: 1, mouth: l.fem ? 'smile' : 'flat', height: 1, lips: l.fem ? 0xb84a55 : null, ...l };
+  }
   function buildCandidate(c) {
-    const L = LOOK[c.def.id] || LOOK.melenchon;
+    const L = LOOK[c.def.id] || lookFrom(c.def.look || {});
     const root = new THREE.Group();
     const body = new THREE.Group();
     root.add(body);
     const inner = new THREE.Group();
     inner.scale.setScalar(L.height);
     body.add(inner);
-    const suit = mat(L.suit), trousers = mat(new THREE.Color(L.suit).multiplyScalar(0.7).getHex()), skin = mat(SKIN);
+    const suit = mat(L.suit), trousers = mat(new THREE.Color(L.suit).multiplyScalar(0.7).getHex()), skin = mat(L.skin || SKIN);
     const legs = [];
     for (const s of [-1, 1]) {
       const hip = new THREE.Group(); hip.position.set(s * 7, 28, 0);
@@ -321,7 +326,7 @@ const R3 = (() => {
       brow.rotation.z = -s * L.browTilt;
       head.add(brow);
     }
-    head.add(mesh(G.sph, mat(0xe9b292), 3.6 * L.nose, 4.2 * L.nose, 4 * L.nose, 0, 18, 19.5));
+    head.add(mesh(G.sph, mat(L.skin ? new THREE.Color(L.skin).multiplyScalar(0.9).getHex() : 0xe9b292), 3.6 * L.nose, 4.2 * L.nose, 4 * L.nose, 0, 18, 19.5));
     const mouthMat = mat(L.lips || 0x7a2e2e);
     if (L.mouth === 'smile') { const m = new THREE.Mesh(new THREE.TorusGeometry(5, 1.1, 6, 16, Math.PI), mouthMat); m.position.set(0, 12, 17.6); m.rotation.z = Math.PI; head.add(m); }
     else if (L.mouth === 'open') head.add(mesh(G.sph, mat(0x5a1e1e), 4.5, 3, 2, 0, 11.5, 17.4));
@@ -358,6 +363,10 @@ const R3 = (() => {
       head.add(mesh(G.cyl, hair, 21.5, 28, 15, 0, 12, -7));
       for (const s of [-1, 1]) head.add(mesh(G.sph, hair, 7, 16, 11, s * 18.5, 14, -1));
       const fringe = mesh(G.sph, hair, 17, 6, 10, -4, 36, 11); fringe.rotation.z = 0.25; head.add(fringe);
+    } else if (L.style === 'bald') {
+      // crâne dégarni : couronne de cheveux sur l'arrière et les côtés
+      const crown = new THREE.Mesh(new THREE.TorusGeometry(19, 3.2, 8, 24, Math.PI * 1.3), hair);
+      crown.rotation.set(Math.PI / 2, 0, Math.PI * 0.35 + Math.PI); crown.position.set(0, 23, -2); head.add(crown);
     } else {
       cap.scale.set(21.2, 22.2, 20.6); head.add(cap);
     }
@@ -453,7 +462,7 @@ const R3 = (() => {
   }
 
   function buildFx(f) {
-    const col = f.type === 'heal' ? 0x5fd17a : hex(TEAMS[f.team].color);
+    const col = f.type === 'heal' || f.heal ? 0x5fd17a : f.type === 'zone' ? 0xff7a1a : hex(TEAMS[f.team].color);
     const g = new THREE.Group();
     const ring = new THREE.Mesh(new THREE.RingGeometry(f.radius - 8, f.radius, 64), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 3; g.add(ring);

@@ -56,6 +56,10 @@
   .cc-meta { color: var(--mute); font-size: 12px; margin: 2px 0 6px; }
   .cand-card ul { margin: 0; padding: 0; list-style: none; font-size: 12.5px; color: #c9d1db; }
   .cand-card li b { display: inline-block; width: 18px; color: var(--gold); }
+  .cand-card li span { color: var(--mute); }
+  .cand-card.neutral { border-style: dashed; }
+  .cand-card .neu { font-size: 11px; font-weight: 700; color: var(--mute); background: #232a33; border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
+  .cls-title { grid-column: 1 / -1; margin: 10px 0 0; font-size: 15px; color: var(--gold); }
   .keys { text-align: center; color: var(--mute); font-size: 13px; margin-top: 18px; }
   kbd { background: #222a35; border: 1px solid #3a4452; border-bottom-width: 3px; border-radius: 5px; padding: 1px 6px; font: 600 12px system-ui; color: var(--text); }
 
@@ -109,7 +113,8 @@
   #right-bottom { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   #me-dons { font: 800 18px ui-monospace, monospace; color: var(--gold); }
   #me-items { display: grid; grid-template-columns: repeat(3, 30px); gap: 4px; }
-  .slot { width: 30px; height: 30px; border-radius: 6px; background: #1c232d; border: 1px solid #3a4452; display: grid; place-items: center; font-size: 17px; }
+  .slot sub { position: absolute; right: 2px; bottom: 0; font: 800 9px system-ui; color: var(--gold); }
+  .slot { position: relative; width: 30px; height: 30px; border-radius: 6px; background: #1c232d; border: 1px solid #3a4452; display: grid; place-items: center; font-size: 17px; }
   #btn-shop { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--gold); background: rgba(255,211,77,.12); font-weight: 800; }
   #help { position: fixed; right: 10px; bottom: 10px; font-size: 11.5px; color: var(--mute); padding: 8px 10px; max-width: 240px; }
 
@@ -153,12 +158,12 @@
 <div id="menu">
   <div class="menu-box">
     <h1>Campagne <span class="r">20</span><span class="b">27</span></h1>
-    <div class="tag">MOBA 3 contre 3 · gauche contre droite · le premier camp qui conquiert l’Élysée gagne</div>
+    <div class="tag">MOBA 3 contre 3 · gauche contre droite · pour gagner : l’Élysée + une majorité à l’Assemblée ou au Sénat</div>
     <div class="rules">
       <div class="rule"><b>🗳️ Militants & bureaux</b><span>Vos militants partent du QG et vont déposer leurs bulletins. 6 bulletins conquièrent définitivement un bureau adverse. Quand tous les bureaux adverses d’une voie sont à vous, ils votent à l’objectif.</span></div>
-      <div class="rule"><b>🏛️ Objectifs</b><span>Assemblée (10) : militants +25 %. Sénat (10) : parrainages et dons en continu. Élysée : 16 bulletins = victoire. Second tour à 15:00 : bulletins doublés.</span></div>
-      <div class="rule"><b>📊 Sondage</b><span>Votre puissance dépend de votre score dans le sondage. Les polémiques font baisser l’adversaire. Le meilleur sondage du camp gagnant est élu.</span></div>
-      <div class="rule"><b>🏘️ Jungle</b><span>Mairies : parrainages, de plus en plus à chaque passage. Meetings : dons. Attention : 10 s d’immobilisation.</span></div>
+      <div class="rule"><b>🏛️ Objectifs</b><span>Assemblée (10) : militants +25 %. Sénat (10) : parrainages et dons en continu. Élysée : 16 bulletins = présidentielle gagnée. Victoire avec l’Élysée <b>et</b> une des deux chambres. Second tour à 60 % du temps : bulletins doublés.</span></div>
+      <div class="rule"><b>📊 Sondage</b><span>Tout le monde part de 0 %. Sorts débloqués à 5, 10, 15 et 30 %. À la fin du temps (5, 10 ou 15 min), le candidat en tête des sondages l’emporte pour son camp.</span></div>
+      <div class="rule"><b>🏘️ Jungle</b><span>Mairies : parrainages. Meetings : dons. Entrée pour récolter : 12 s immobile chez soi, 7 s chez l’adversaire. Bouger annule.</span></div>
     </div>
     <div id="options"></div>
     <div id="pick-teams"></div>

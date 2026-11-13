@@ -30,7 +30,7 @@ puis ouvrez http://localhost:8127.
 
 ![Partie](docs/partie.jpg)
 
-## Règles (v1)
+## Règles
 
 | Mécanique | Fonctionnement |
 |---|---|
@@ -39,27 +39,44 @@ puis ouvrez http://localhost:8127.
 | **Objectifs** | Une voie s’ouvre quand tous les bureaux adverses de cette voie sont conquis. Les militants votent alors à l’objectif. Chaque objectif a une jauge commune à remplir, et les deux camps peuvent voter dans la même jauge, chacun la tirant vers soi. |
 | **Assemblée nationale** | 10 bulletins donnent la majorité, qui renforce les militants du camp de 25 %. |
 | **Sénat** | 10 bulletins donnent la majorité, qui rapporte des parrainages et des dons en continu. |
-| **Élysée** | 16 bulletins font gagner la partie. |
-| **Second tour** | À 15:00, chaque bulletin compte double. |
+| **Élysée** | 16 bulletins font gagner la présidentielle. |
+| **Second tour** | À 60 % du temps, chaque bulletin compte double. |
 | **Conversion** | Un candidat qui met KO un militant adverse le « convertit » : le militant rentre chez lui sans voter, et le candidat gagne des dons et des points de sondage. |
 | **Polémiques** | Les attaques des candidats sont des polémiques, lancées sous forme de **phylactères** (« Honte ! », « Démission ! »…). Les sorts sont des bulles pleines aux couleurs du camp. Chaque coup fait baisser la cible dans les sondages au profit de l’attaquant. À 0 de crédibilité, c’est le scandale : retour au QG avec un délai, et 15 % de son score perdu. |
 | **Sondage** | Tout le monde part de **0 %** : les 100 % sont d’abord des **indécis**. Conversions, bulletins, bureaux conquis et mairies font gagner des indécis, de plus en plus difficilement à mesure qu’il en reste peu. Polémiques et scandales font passer des points d’un candidat à l’autre. Le score détermine la **puissance** (dégâts et crédibilité). |
 | **Sorts** | Ils se débloquent dans les sondages : **A à 5 %**, **Z à 10 %**, **E à 15 %**, **R à 30 %**. Un sort débloqué le reste. |
 | **Mairies** | Rapportent des **parrainages** (et du sondage). Plus votre camp a vidé une mairie, plus elle rapporte. |
-| **Meetings** | Rapportent des **dons**. |
+| **Meetings** | Rapportent des **dons**. Chaque meeting déjà organisé par votre camp dure 2 s de plus mais rapporte 70 € de plus. |
 | **Récolte** | Il faut rester **immobile** : 12 s de son côté de la carte, 7 s du côté adverse, 10 s dans les quartiers neutres. Bouger annule la récolte, qui repart de zéro. |
-| **Boutique** | Accessible au QG. On y achète du matériel de campagne : des objets personnels (porte-voix, bus, media training…) et des améliorations pour les militants (tracts, banderoles, baskets). |
-| **Fin de partie** | Le premier camp à remplir la jauge de l’Élysée gagne. À 25:00, si personne n’a gagné, le scrutin est clos et c’est la jauge de l’Élysée qui départage les camps. Le candidat le mieux placé dans les sondages du camp gagnant est élu. |
+| **Boutique** | Accessible au QG (P, puis 1 à 9). Chaque objet personnel a **3 niveaux**, de plus en plus chers et puissants : par exemple Porte-voix (250 €, +15 % dégâts), puis Mégaphone (550 €, +35 %), puis Sono de stade (1 000 €, +65 %). Les améliorations des militants (tracts, banderoles, baskets) coûtent aussi de plus en plus cher. |
+| **Victoire** | Il faut gagner la **présidentielle** (Élysée) **et** avoir la majorité dans **au moins une chambre** (Assemblée ou Sénat). Sinon c’est la cohabitation, et la partie continue. |
+| **Durée** | 5, 10 ou 15 minutes, au choix dans le menu. À la fin du temps, le candidat **en tête des sondages** l’emporte pour son camp et il est élu. |
 
-## Candidats v1
+## Candidats
 
-| Gauche | Droite | Rôle |
+Les 33 personnalités suivies par [Poligraph](https://poligraph.fr/elections/presidentielle-2027/candidats) (candidatures annoncées ou pressenties) sont jouables. Elles sont classées à gauche, à droite, ou parmi les **neutres et inclassables**. Ces derniers sont un peu plus faibles (−12 % de crédibilité et de dégâts) mais jouables dans les deux camps.
+
+Chaque équipe compte **un tank** (voie de l’Assemblée), **un DPS** (avenue de l’Élysée) et **un soutien** (voie du Sénat). Les bots complètent l’équipe du joueur et l’équipe adverse.
+
+| Classe | Archétypes (inspirés des MOBA) |
+|---|---|
+| **Tank** | Bastion (étourdissements), Colosse (récupère 75 % en 10 s), Rempart (boucliers de zone, affaiblissement) |
+| **DPS** | Mage (zone et brûlures), Tireur (projectiles, tir à travers la carte), Assassin (bond, soin sur soi, frappe et brûlure), Artilleur (très longue portée), Duelliste (corps à corps, régénération) |
+| **Soutien** | Soigneur (soin de zone, soin global), Protecteur (boucliers d’équipe), Enchanteur (soins, accélération, affaiblissement) |
+
+Les mécaniques de sorts disponibles :
+- bonds, avec ou sans dégâts ou étourdissement ;
+- projectiles, éventuellement perforants ;
+- zones de dégâts, immédiates, différées ou persistantes ;
+- soins : de zone, globaux, sur soi, ou sur la durée ;
+- boucliers : sur soi ou de zone ;
+- affaiblissements (−dégâts et −vitesse), brûlures, ralentissements, étourdissements, accélérations.
+
+Chaque candidat a des noms de sorts qui lui sont propres. Les 6 premiers ont des kits sur mesure.
+
+| Gauche | Droite | Neutres |
 |---|---|---|
-| Jean-Luc Mélenchon | Marine Le Pen | Tribun : dégâts de zone, voie centrale |
-| Raphaël Glucksmann | Édouard Philippe | Tireur : dégâts à distance, voie sud |
-| Marine Tondelier | Bruno Retailleau | Rempart : soutien ou contrôle, voie nord |
-
-Les kits sont symétriques pour l’équilibre. Les rôles de rempart diffèrent : Tondelier soigne, Retailleau étourdit. Les candidats sont représentés par leurs initiales : le jeu ne contient aucune photo.
+| Nathalie Arthaud, Delphine Batho, Karim Bouamrane, Bernard Cazeneuve, Raphaël Glucksmann, Anasse Kazib, Selma Labib, Jean-Luc Mélenchon, Fabien Roussel, François Ruffin, Marine Tondelier | Gabriel Attal, Olivier Becht, Xavier Bertrand, Nicolas Dupont-Aignan, Marine Le Pen, David Lisnard, Édouard Philippe, Florian Philippot, Gilles Platret, Bruno Retailleau, Dominique de Villepin, Éric Zemmour | François Asselineau, Juan Branco, Joël Chevé, Emmanuel Dubuisson, Clara Egger, Mira Markovic, Antoine Mikolajczak, Natacha Polony, Teddy Riner, Fabien Verdier |
 
 ## Contrôles
 

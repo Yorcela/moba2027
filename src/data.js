@@ -24,14 +24,16 @@ const CFG = {
   waveEvery: 22,         // s entre deux vagues
   bureauMax: 6,          // bulletins pour conquérir un bureau de vote
   objMax: { top: 10, mid: 16, bot: 10 }, // bulletins pour contrôler AN / gagner l'Élysée / contrôler le Sénat
-  secondTour: 15 * 60,   // à partir de là, chaque bulletin compte double
+  secondTour: 6 * 60,    // à partir de là, chaque bulletin compte double (60 % de la durée, recalculé)
   campChannel: 10,       // s immobile dans un camp de jungle neutre
   campChannelOwn: 12,    // … dans un camp de son côté de la carte
   campChannelFoe: 7,     // … dans un camp du côté adverse (plus risqué, plus rapide)
+  meetingExtra: 2,       // s de plus à chaque meeting déjà organisé par le camp (et +70 € de dons)
   mairieRespawn: 55,
   meetingRespawn: 45,
   recallTime: 4,
-  timeLimit: 25 * 60,    // scrutin forcé
+  timeLimit: 10 * 60,    // durée de la partie : 5, 10 ou 15 min (choisie dans le menu)
+  durations: [5, 10, 15],
   qgRadius: 190,
   passiveDons: 1.5,      // € / s
   startDons: 300,
@@ -52,94 +54,246 @@ const DIFFICULTY = {
   difficile: { label: 'Difficile', dmg: 1.0, react: 0.12, abil: 1 },
 };
 
-const LANE_BY_ROLE = { tribun: 'mid', tireur: 'bot', rempart: 'top' };
-const ROLE_NAMES = { tribun: 'Tribun · dégâts de zone', tireur: 'Tireur · dégâts à distance', rempart: 'Rempart · soutien / contrôle' };
-const LANE_NAMES = { top: 'Voie de l’Assemblée', mid: 'Avenue de l’Élysée', bot: 'Voie du Sénat' };
-
-// ─── Candidats v1 (3 + 3) ────────────────────────────────────────────────────
-// Kits inspirés du style public de chacun, volontairement symétriques pour l'équilibre.
+// Types de sorts : skillshot (projectile), nova (zone autour de soi), blast (zone à distance, différée),
+// zone (zone persistante qui brûle), dash, shield (sur soi si radius 0, sinon de zone), heal (zone de soin),
+// selfheal (soin immédiat sur soi), regen (soin sur soi dans la durée), globalheal (tous les alliés), haste.
+// Modificateurs : slow/slowDur, stun, dot { dps, dur } (brûlure), weaken { pct, dur } (affaiblit dégâts et vitesse),
+// buff { dmg, dur } (renforce le lanceur), pierce.
 const CANDIDATES = [
   {
-    id: 'melenchon', name: 'Jean-Luc Mélenchon', initials: 'JLM', party: 'LFI', team: 'gauche', role: 'tribun', fem: false,
-    hp: 540, ad: 34, range: 500, as: 0.75, spd: 300,
+    id: 'melenchon', name: 'Jean-Luc Mélenchon', initials: 'JLM', party: 'LFI', team: 'gauche', role: 'mage', fem: false,
+    hp: 520, ad: 32, range: 520, as: 0.72, spd: 300,
     abilities: {
-      Q: { name: 'Tirade', type: 'skillshot', cd: 6, range: 950, dmg: 95, speed: 950, width: 34, desc: 'Une longue tirade en ligne droite.' },
-      W: { name: 'Bain de foule', type: 'nova', cd: 10, radius: 260, dmg: 70, slow: 0.35, slowDur: 2, desc: 'Dégâts autour de soi et ralentissement.' },
-      E: { name: 'Marche', type: 'dash', cd: 12, range: 380, desc: 'Se déplace rapidement vers le curseur.' },
-      R: { name: 'Grand meeting', type: 'blast', cd: 60, range: 900, radius: 320, delay: 0.9, dmg: 240, desc: 'Après un court délai, frappe une grande zone.' },
+      Q: { name: 'Tirade', type: 'skillshot', cd: 6, range: 950, dmg: 80, speed: 950, width: 34, dot: { dps: 14, dur: 3 }, desc: 'Projectile enflammé : dégâts puis brûlure pendant 3 s.' },
+      W: { name: 'Bain de foule', type: 'nova', cd: 10, radius: 260, dmg: 75, slow: 0.35, slowDur: 2, desc: 'Dégâts autour de soi et ralentissement.' },
+      E: { name: 'Marche', type: 'dash', cd: 12, range: 380, desc: 'Déplacement rapide.' },
+      R: { name: 'Grand soir', type: 'zone', cd: 55, range: 900, radius: 300, dps: 65, dur: 4, desc: 'Embrase une grande zone : brûlure continue pendant 4 s.' },
     },
   },
   {
     id: 'glucksmann', name: 'Raphaël Glucksmann', initials: 'RG', party: 'Place publique', team: 'gauche', role: 'tireur', fem: false,
-    hp: 560, ad: 46, range: 600, as: 0.9, spd: 305,
+    hp: 520, ad: 48, range: 620, as: 0.9, spd: 300,
     abilities: {
       Q: { name: 'Tribune européenne', type: 'skillshot', cd: 7, range: 1050, dmg: 85, speed: 1100, width: 30, pierce: true, desc: 'Traverse toutes les cibles sur sa ligne.' },
-      W: { name: 'Plaidoyer', type: 'shield', cd: 14, radius: 0, amount: 160, dur: 3, as: 0.4, desc: 'Bouclier et +40 % vitesse d’attaque.' },
+      W: { name: 'Plaidoyer', type: 'shield', cd: 14, radius: 0, amount: 150, dur: 4, as: 0.5, desc: 'Bouclier sur soi et +50 % vitesse d’attaque.' },
       E: { name: 'Pas de côté', type: 'dash', cd: 9, range: 300, desc: 'Court déplacement rapide.' },
-      R: { name: 'Coalition', type: 'haste', cd: 55, radius: 650, pct: 0.35, dur: 4, shield: 120, desc: 'Alliés proches : +35 % vitesse et bouclier.' },
+      R: { name: 'Sanctions', type: 'skillshot', cd: 60, range: 3200, dmg: 230, speed: 1900, width: 50, weaken: { pct: 0.3, dur: 4 }, desc: 'Projectile qui traverse la carte et affaiblit la cible (−30 % dégâts et vitesse).' },
     },
   },
   {
-    id: 'tondelier', name: 'Marine Tondelier', initials: 'MT', party: 'Les Écologistes', team: 'gauche', role: 'rempart', fem: true,
-    hp: 640, ad: 32, range: 460, as: 0.8, spd: 310,
+    id: 'tondelier', name: 'Marine Tondelier', initials: 'MT', party: 'Les Écologistes', team: 'gauche', role: 'soigneur', fem: true,
+    hp: 600, ad: 30, range: 500, as: 0.8, spd: 310,
     abilities: {
-      Q: { name: 'Tract vert', type: 'skillshot', cd: 7, range: 900, dmg: 60, speed: 900, width: 36, slow: 0.4, slowDur: 2, desc: 'Ralentit fortement la cible touchée.' },
-      W: { name: 'Coulée verte', type: 'heal', cd: 14, range: 700, radius: 230, hps: 32, dur: 4, desc: 'Zone qui soigne les alliés.' },
-      E: { name: 'À vélo', type: 'haste', cd: 12, radius: 420, pct: 0.4, dur: 3, desc: 'Alliés proches : +40 % vitesse.' },
-      R: { name: 'Mobilisation', type: 'shield', cd: 60, radius: 700, amount: 210, dur: 4, desc: 'Gros bouclier sur tous les alliés proches.' },
+      Q: { name: 'Tract vert', type: 'skillshot', cd: 7, range: 900, dmg: 65, speed: 900, width: 36, slow: 0.4, slowDur: 2, desc: 'Ralentit fortement la cible touchée.' },
+      W: { name: 'Coulée verte', type: 'heal', cd: 13, range: 700, radius: 230, hps: 34, dur: 4, desc: 'Zone qui soigne les alliés pendant 4 s.' },
+      E: { name: 'Haie protectrice', type: 'shield', cd: 14, radius: 550, amount: 140, dur: 4, desc: 'Bouclier sur tous les alliés proches.' },
+      R: { name: 'Transition', type: 'globalheal', cd: 70, pct: 0.35, haste: 0.25, dur: 3, desc: 'Soigne tous les alliés, où qu’ils soient, de 35 % et les accélère.' },
     },
   },
   {
-    id: 'lepen', name: 'Marine Le Pen', initials: 'MLP', party: 'RN', team: 'droite', role: 'tribun', fem: true,
-    hp: 540, ad: 34, range: 500, as: 0.75, spd: 300,
+    id: 'lepen', name: 'Marine Le Pen', initials: 'MLP', party: 'RN', team: 'droite', role: 'colosse', fem: true,
+    hp: 640, ad: 38, range: 440, as: 0.8, spd: 305,
     abilities: {
-      Q: { name: 'Discours', type: 'skillshot', cd: 6, range: 950, dmg: 95, speed: 950, width: 34, desc: 'Un discours en ligne droite.' },
-      W: { name: 'Rassemblement', type: 'nova', cd: 10, radius: 260, dmg: 70, slow: 0.35, slowDur: 2, desc: 'Dégâts autour de soi et ralentissement.' },
-      E: { name: 'Tournée', type: 'dash', cd: 12, range: 380, desc: 'Se déplace rapidement vers le curseur.' },
-      R: { name: 'Meeting géant', type: 'blast', cd: 60, range: 900, radius: 320, delay: 0.9, dmg: 240, desc: 'Après un court délai, frappe une grande zone.' },
+      Q: { name: 'Discours', type: 'skillshot', cd: 6, range: 900, dmg: 85, speed: 950, width: 34, desc: 'Un discours en ligne droite.' },
+      W: { name: 'Rassemblement', type: 'nova', cd: 11, radius: 250, dmg: 60, weaken: { pct: 0.25, dur: 4 }, desc: 'Dégâts autour de soi et affaiblit les ennemis (−25 %).' },
+      E: { name: 'Tournée', type: 'dash', cd: 12, range: 380, radius: 150, dmg: 60, slow: 0.3, slowDur: 1.5, desc: 'Fonce et frappe à l’arrivée.' },
+      R: { name: 'Second souffle', type: 'regen', cd: 70, pct: 0.75, dur: 10, buff: { dmg: 0.25, dur: 10 }, desc: 'Récupère 75 % de sa crédibilité en 10 s, +25 % dégâts.' },
     },
   },
   {
-    id: 'philippe', name: 'Édouard Philippe', initials: 'EP', party: 'Horizons', team: 'droite', role: 'tireur', fem: false,
-    hp: 560, ad: 46, range: 600, as: 0.9, spd: 305,
+    id: 'philippe', name: 'Édouard Philippe', initials: 'EP', party: 'Horizons', team: 'droite', role: 'assassin', fem: false,
+    hp: 540, ad: 44, range: 460, as: 0.85, spd: 320,
     abilities: {
-      Q: { name: 'Note technique', type: 'skillshot', cd: 7, range: 1050, dmg: 85, speed: 1100, width: 30, pierce: true, desc: 'Traverse toutes les cibles sur sa ligne.' },
-      W: { name: 'Course de fond', type: 'shield', cd: 14, radius: 0, amount: 160, dur: 3, as: 0.4, desc: 'Bouclier et +40 % vitesse d’attaque.' },
-      E: { name: 'Foulée', type: 'dash', cd: 9, range: 300, desc: 'Court déplacement rapide.' },
-      R: { name: 'Horizon', type: 'haste', cd: 55, radius: 650, pct: 0.35, dur: 4, shield: 120, desc: 'Alliés proches : +35 % vitesse et bouclier.' },
+      Q: { name: 'Note technique', type: 'skillshot', cd: 6, range: 900, dmg: 80, speed: 1100, width: 30, slow: 0.25, slowDur: 1.5, desc: 'Projectile rapide qui ralentit.' },
+      W: { name: 'Course de fond', type: 'selfheal', cd: 14, pct: 0.25, haste: 0.3, dur: 2, desc: 'Se soigne de 25 % et accélère.' },
+      E: { name: 'Foulée', type: 'dash', cd: 10, range: 340, radius: 140, dmg: 90, desc: 'Fonce et frappe à l’arrivée.' },
+      R: { name: 'Réforme', type: 'blast', cd: 50, range: 650, radius: 170, delay: 0.3, dmg: 240, dot: { dps: 30, dur: 4 }, desc: 'Frappe ciblée, puis brûlure pendant 4 s.' },
     },
   },
   {
-    id: 'retailleau', name: 'Bruno Retailleau', initials: 'BR', party: 'LR', team: 'droite', role: 'rempart', fem: false,
-    hp: 660, ad: 33, range: 440, as: 0.8, spd: 305,
+    id: 'retailleau', name: 'Bruno Retailleau', initials: 'BR', party: 'LR', team: 'droite', role: 'bastion', fem: false,
+    hp: 720, ad: 34, range: 430, as: 0.75, spd: 300,
     abilities: {
-      Q: { name: 'Rappel à l’ordre', type: 'skillshot', cd: 9, range: 850, dmg: 60, speed: 950, width: 36, stun: 1.0, desc: 'Étourdit la première cible touchée.' },
-      W: { name: 'Fermeté', type: 'shield', cd: 14, radius: 600, amount: 150, dur: 3, desc: 'Bouclier sur les alliés proches.' },
+      Q: { name: 'Rappel à l’ordre', type: 'skillshot', cd: 9, range: 850, dmg: 65, speed: 950, width: 36, stun: 1.0, desc: 'Étourdit la première cible touchée.' },
+      W: { name: 'Fermeté', type: 'shield', cd: 13, radius: 0, amount: 260, dur: 4, desc: 'Gros bouclier sur soi.' },
       E: { name: 'Charge', type: 'dash', cd: 13, range: 360, radius: 160, dmg: 50, stun: 0.6, desc: 'Fonce et étourdit à l’arrivée.' },
-      R: { name: 'Tolérance zéro', type: 'blast', cd: 60, range: 800, radius: 280, delay: 0.6, dmg: 150, stun: 1.5, desc: 'Zone qui étourdit longuement.' },
+      R: { name: 'Ordre républicain', type: 'nova', cd: 55, radius: 330, dmg: 140, stun: 0.8, weaken: { pct: 0.35, dur: 4 }, desc: 'Étourdit et affaiblit (−35 %) tous les ennemis autour.' },
     },
   },
 ];
+// ─── Classes (tank / DPS / soutien) et archétypes de kits inspirés des MOBA ──
+const CLASS_NAMES = { tank: 'Tank', dps: 'DPS', soutien: 'Soutien' };
+const CLASS_LANE = { tank: 'top', dps: 'mid', soutien: 'bot' }; // voie préférée de chaque classe
+const ARCH = {
+  mage: { cls: 'dps', name: 'Mage · zone et brûlures', build: 'mage',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'skillshot', cd: 6, range: 950, dmg: 80, speed: 950, width: 34, dot: { dps: 14, dur: 3 }, desc: 'Projectile enflammé : dégâts puis brûlure 3 s.' },
+      W: { name: n[1], type: 'nova', cd: 10, radius: 260, dmg: 75, slow: 0.35, slowDur: 2, desc: 'Dégâts autour de soi et ralentissement.' },
+      E: { name: n[2], type: 'dash', cd: 12, range: 380, desc: 'Déplacement rapide.' },
+      R: { name: n[3], type: 'zone', cd: 55, range: 900, radius: 300, dps: 65, dur: 4, desc: 'Embrase une grande zone pendant 4 s.' },
+    }) },
+  tireur: { cls: 'dps', name: 'Tireur · dégâts à distance', build: 'tireur',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'skillshot', cd: 7, range: 1050, dmg: 85, speed: 1100, width: 30, pierce: true, desc: 'Traverse toutes les cibles sur sa ligne.' },
+      W: { name: n[1], type: 'shield', cd: 14, radius: 0, amount: 150, dur: 4, as: 0.5, desc: 'Bouclier sur soi, +50 % vitesse d’attaque.' },
+      E: { name: n[2], type: 'dash', cd: 9, range: 300, desc: 'Court déplacement rapide.' },
+      R: { name: n[3], type: 'skillshot', cd: 60, range: 3200, dmg: 230, speed: 1900, width: 50, weaken: { pct: 0.3, dur: 4 }, desc: 'Traverse la carte et affaiblit la cible (−30 %).' },
+    }) },
+  assassin: { cls: 'dps', name: 'Assassin · mobile, élimine une cible', build: 'assassin',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'skillshot', cd: 6, range: 900, dmg: 80, speed: 1100, width: 30, slow: 0.25, slowDur: 1.5, desc: 'Projectile rapide qui ralentit.' },
+      W: { name: n[1], type: 'selfheal', cd: 14, pct: 0.25, haste: 0.3, dur: 2, desc: 'Se soigne de 25 % et accélère.' },
+      E: { name: n[2], type: 'dash', cd: 10, range: 340, radius: 140, dmg: 90, desc: 'Fonce et frappe à l’arrivée.' },
+      R: { name: n[3], type: 'blast', cd: 50, range: 650, radius: 170, delay: 0.3, dmg: 240, dot: { dps: 30, dur: 4 }, desc: 'Frappe ciblée puis brûlure 4 s.' },
+    }) },
+  artilleur: { cls: 'dps', name: 'Artilleur · frappe de très loin', build: 'mage',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'blast', cd: 5, range: 1100, radius: 120, delay: 0.6, dmg: 95, desc: 'Frappe différée à très longue portée.' },
+      W: { name: n[1], type: 'skillshot', cd: 10, range: 950, dmg: 60, speed: 1000, width: 40, weaken: { pct: 0.25, dur: 3 }, desc: 'Affaiblit la cible touchée (−25 %).' },
+      E: { name: n[2], type: 'haste', cd: 12, radius: 0, pct: 0.45, dur: 2.5, desc: '+45 % vitesse pour se replacer.' },
+      R: { name: n[3], type: 'zone', cd: 60, range: 1500, radius: 260, dps: 55, dur: 5, desc: 'Zone brûlante à 1 500 de portée pendant 5 s.' },
+    }) },
+  duelliste: { cls: 'dps', name: 'Duelliste · corps à corps, se soigne', build: 'combattant',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'nova', cd: 6, radius: 220, dmg: 80, desc: 'Frappe tout autour de soi.' },
+      W: { name: n[1], type: 'shield', cd: 12, radius: 0, amount: 160, dur: 3, as: 0.35, desc: 'Bouclier sur soi, +35 % vitesse d’attaque.' },
+      E: { name: n[2], type: 'dash', cd: 10, range: 360, radius: 130, dmg: 60, stun: 0.5, desc: 'Fonce, frappe et étourdit brièvement.' },
+      R: { name: n[3], type: 'regen', cd: 60, pct: 0.5, dur: 6, buff: { dmg: 0.4, dur: 6 }, desc: 'Récupère 50 % en 6 s, +40 % dégâts.' },
+    }) },
+  bastion: { cls: 'tank', name: 'Bastion · contrôle et étourdissements', build: 'tank',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'skillshot', cd: 9, range: 850, dmg: 65, speed: 950, width: 36, stun: 1.0, desc: 'Étourdit la première cible touchée.' },
+      W: { name: n[1], type: 'shield', cd: 13, radius: 0, amount: 260, dur: 4, desc: 'Gros bouclier sur soi.' },
+      E: { name: n[2], type: 'dash', cd: 13, range: 360, radius: 160, dmg: 50, stun: 0.6, desc: 'Fonce et étourdit à l’arrivée.' },
+      R: { name: n[3], type: 'nova', cd: 55, radius: 330, dmg: 140, stun: 0.8, weaken: { pct: 0.35, dur: 4 }, desc: 'Étourdit et affaiblit (−35 %) tout autour.' },
+    }) },
+  colosse: { cls: 'tank', name: 'Colosse · encaisse et récupère', build: 'combattant',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'skillshot', cd: 6, range: 900, dmg: 85, speed: 950, width: 34, desc: 'Projectile en ligne droite.' },
+      W: { name: n[1], type: 'nova', cd: 11, radius: 250, dmg: 60, weaken: { pct: 0.25, dur: 4 }, desc: 'Dégâts autour de soi, affaiblit (−25 %).' },
+      E: { name: n[2], type: 'dash', cd: 12, range: 380, radius: 150, dmg: 60, slow: 0.3, slowDur: 1.5, desc: 'Fonce et frappe à l’arrivée.' },
+      R: { name: n[3], type: 'regen', cd: 70, pct: 0.75, dur: 10, buff: { dmg: 0.25, dur: 10 }, desc: 'Récupère 75 % en 10 s, +25 % dégâts.' },
+    }) },
+  rempart: { cls: 'tank', name: 'Rempart · protège son équipe', build: 'tank',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'nova', cd: 7, radius: 240, dmg: 60, slow: 0.4, slowDur: 2, desc: 'Ralentit tous les ennemis autour.' },
+      W: { name: n[1], type: 'shield', cd: 14, radius: 550, amount: 170, dur: 4, desc: 'Bouclier sur tous les alliés proches.' },
+      E: { name: n[2], type: 'dash', cd: 13, range: 360, radius: 160, dmg: 40, stun: 0.7, desc: 'Fonce et étourdit à l’arrivée.' },
+      R: { name: n[3], type: 'blast', cd: 55, range: 700, radius: 340, delay: 0.5, dmg: 110, slow: 0.5, slowDur: 3, weaken: { pct: 0.3, dur: 5 }, desc: 'Grande zone qui ralentit et affaiblit (−30 %).' },
+    }) },
+  soigneur: { cls: 'soutien', name: 'Soigneur · soins de zone et globaux', build: 'soutien',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'skillshot', cd: 7, range: 900, dmg: 65, speed: 900, width: 36, slow: 0.4, slowDur: 2, desc: 'Ralentit fortement la cible touchée.' },
+      W: { name: n[1], type: 'heal', cd: 13, range: 700, radius: 230, hps: 34, dur: 4, desc: 'Zone qui soigne les alliés 4 s.' },
+      E: { name: n[2], type: 'shield', cd: 14, radius: 550, amount: 140, dur: 4, desc: 'Bouclier sur les alliés proches.' },
+      R: { name: n[3], type: 'globalheal', cd: 70, pct: 0.35, haste: 0.25, dur: 3, desc: 'Soigne tous les alliés de 35 %, où qu’ils soient.' },
+    }) },
+  protecteur: { cls: 'soutien', name: 'Protecteur · boucliers', build: 'soutien',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'skillshot', cd: 9, range: 850, dmg: 55, speed: 950, width: 36, stun: 0.8, desc: 'Étourdit la première cible touchée.' },
+      W: { name: n[1], type: 'shield', cd: 11, radius: 550, amount: 160, dur: 4, desc: 'Bouclier sur les alliés proches.' },
+      E: { name: n[2], type: 'haste', cd: 12, radius: 450, pct: 0.35, dur: 3, desc: 'Alliés proches : +35 % vitesse.' },
+      R: { name: n[3], type: 'shield', cd: 60, radius: 900, amount: 320, dur: 5, as: 0.3, desc: 'Énorme bouclier et +30 % vitesse d’attaque pour l’équipe.' },
+    }) },
+  enchanteur: { cls: 'soutien', name: 'Enchanteur · soigne et affaiblit', build: 'soutien',
+    kit: (n) => ({
+      Q: { name: n[0], type: 'skillshot', cd: 7, range: 900, dmg: 55, speed: 950, width: 38, weaken: { pct: 0.3, dur: 3 }, desc: 'Affaiblit la cible touchée (−30 %).' },
+      W: { name: n[1], type: 'heal', cd: 12, range: 650, radius: 220, hps: 30, dur: 4, desc: 'Zone qui soigne les alliés 4 s.' },
+      E: { name: n[2], type: 'haste', cd: 11, radius: 450, pct: 0.4, dur: 3, desc: 'Alliés proches : +40 % vitesse.' },
+      R: { name: n[3], type: 'nova', cd: 55, radius: 420, dmg: 90, slow: 0.45, slowDur: 3, weaken: { pct: 0.4, dur: 4 }, desc: 'Ralentit et affaiblit (−40 %) tous les ennemis autour.' },
+    }) },
+};
+const ROLE_NAMES = Object.fromEntries(Object.entries(ARCH).map(([k, a]) => [k, a.name]));
+const LANE_NAMES = { top: 'Voie de l’Assemblée', mid: 'Avenue de l’Élysée', bot: 'Voie du Sénat' };
+// statistiques de base par classe
+const CLASS_STATS = {
+  tank: { hp: 700, ad: 34, range: 430, as: 0.75, spd: 300 },
+  dps: { hp: 530, ad: 44, range: 560, as: 0.85, spd: 305 },
+  soutien: { hp: 600, ad: 30, range: 500, as: 0.8, spd: 310 },
+};
+const NEUTRAL_MALUS = 0.88; // les candidats neutres ou inclassables sont plus faibles
+
+// Candidats supplémentaires (liste Poligraph des candidatures annoncées ou pressenties)
+// look : cheveux (hair, style swept|messy|long|short|bald), costume, peau, lunettes, barbe… (caricature, sans photo)
+const EXTRA = [
+  // ── gauche ──
+  ['arthaud', 'Nathalie Arthaud', 'NA', 'Lutte ouvrière', 'gauche', 'mage', ['Tract ouvrier', 'Piquet de grève', 'Manif', 'Grève générale'], { hair: 0x6b4a32, style: 'short', suit: 0x8a1f2b, fem: 1 }],
+  ['batho', 'Delphine Batho', 'DB', 'Génération écologie', 'gauche', 'enchanteur', ['Alerte climat', 'Oasis', 'Pédibus', 'Décroissance'], { hair: 0x2a1d17, style: 'short', suit: 0x2f7a46, fem: 1 }],
+  ['bouamrane', 'Karim Bouamrane', 'KB', 'La France humaine et forte', 'gauche', 'rempart', ['Discours de quartier', 'Bouclier social', 'Élan', 'Pacte républicain'], { hair: 0x1b1612, style: 'short', suit: 0x25304a, beard: 0x1b1612, skin: 0xc79a74 }],
+  ['cazeneuve', 'Bernard Cazeneuve', 'BC', 'La Convention', 'gauche', 'bastion', ['Rappel de l’État', 'Sang-froid', 'Intervention', 'État de droit'], { hair: 0x9a9a9a, style: 'bald', suit: 0x23283a, glasses: 1, tie: 0x8a1f2b }],
+  ['kazib', 'Anasse Kazib', 'AK', 'Révolution permanente', 'gauche', 'assassin', ['Coup de gueule', 'Débrayage', 'Blocage', 'Révolution'], { hair: 0x161210, style: 'short', suit: 0x3a3a3a, beard: 0x161210, skin: 0xb98a63 }],
+  ['labib', 'Selma Labib', 'SL', 'NPA-Révolutionnaires', 'gauche', 'artilleur', ['Tract', 'Assemblée générale', 'Cortège', 'Convergence des luttes'], { hair: 0x1f1612, style: 'long', suit: 0x8a1f2b, fem: 1, skin: 0xd9a983 }],
+  ['roussel', 'Fabien Roussel', 'FR', 'PCF', 'gauche', 'colosse', ['Coup de rouge', 'Fête de l’Huma', 'Usine', 'Les jours heureux'], { hair: 0x3a2a20, style: 'short', suit: 0x8a1f2b, tie: 0xd7263d }],
+  ['ruffin', 'François Ruffin', 'FRu', 'Nous président', 'gauche', 'duelliste', ['Coup de com', 'Reportage', 'Tournée des usines', 'Merci patron !'], { hair: 0x4a3426, style: 'messy', suit: 0x3b4252, stubble: 0x4a3426 }],
+  // ── droite ──
+  ['attal', 'Gabriel Attal', 'GA', 'Renaissance', 'droite', 'tireur', ['Petite phrase', 'Plateau', 'Échappée', 'Majorité absolue'], { hair: 0x1f1813, style: 'short', suit: 0x1e2a5a, tie: 0x2f55c4, height: 0.97 }],
+  ['becht', 'Olivier Becht', 'OB', 'Sans étiquette', 'droite', 'protecteur', ['Note de synthèse', 'Dossier', 'Navette', 'Coalition'], { hair: 0x3a2a20, style: 'short', suit: 0x2a2f3a, glasses: 1, tie: 0x3f6fd8 }],
+  ['bertrand', 'Xavier Bertrand', 'XB', 'Nous France', 'droite', 'rempart', ['Proximité', 'Bouclier régional', 'Tournée', 'France du travail'], { hair: 0x8a8a8a, style: 'bald', suit: 0x23324f, glasses: 1, tie: 0x1f3f8f }],
+  ['dupontaignan', 'Nicolas Dupont-Aignan', 'NDA', 'Debout la France', 'droite', 'artilleur', ['Coup de semonce', 'Référendum', 'Debout !', 'Grand débat'], { hair: 0xa8a8a8, style: 'swept', suit: 0x22314f, tie: 0xd7263d }],
+  ['lisnard', 'David Lisnard', 'DL', 'Nouvelle Énergie', 'droite', 'soigneur', ['Arrêté municipal', 'Jardin public', 'Navette', 'Libertés locales'], { hair: 0x2a1f19, style: 'short', suit: 0x1f2a44, tie: 0x3f6fd8 }],
+  ['philippot', 'Florian Philippot', 'FP', 'Les Patriotes', 'droite', 'assassin', ['Vidéo en direct', 'Contre-tout', 'Sortie', 'Grand soir patriote'], { hair: 0x1f1813, style: 'short', suit: 0x22283a, glasses: 1 }],
+  ['platret', 'Gilles Platret', 'GP', 'LR', 'droite', 'bastion', ['Arrêté', 'Fermeté', 'Charge', 'Ordre municipal'], { hair: 0x3a2a20, style: 'short', suit: 0x2a2f3a, tie: 0x1f3f8f }],
+  ['villepin', 'Dominique de Villepin', 'DdV', 'La France humaine et forte', 'droite', 'mage', ['Envolée lyrique', 'Grandeur', 'Panache', 'Discours à l’ONU'], { hair: 0xd8d8d8, style: 'swept', suit: 0x1f2333, tie: 0x3a3f8f, height: 1.1 }],
+  ['zemmour', 'Éric Zemmour', 'EZ', 'Reconquête', 'droite', 'tireur', ['Chronique', 'Polémique', 'Plateau', 'Reconquête'], { hair: 0x2a221c, style: 'bald', suit: 0x22283a, tie: 0x1f3f8f, height: 0.92 }],
+  // ── neutres ou inclassables (plus faibles, jouables dans les deux camps) ──
+  ['asselineau', 'François Asselineau', 'FA', 'UPR', 'neutre', 'enchanteur', ['Article 50', 'Conférence', 'Diaporama', 'Conférence de 3 h'], { hair: 0x8a8a8a, style: 'short', suit: 0x2a2f3a, glasses: 1 }],
+  ['branco', 'Juan Branco', 'JB', 'Sans étiquette', 'neutre', 'assassin', ['Révélation', 'Thread', 'Fuite', 'Crépuscule'], { hair: 0x2a1d17, style: 'long', suit: 0x1b1b1f, stubble: 0x2a1d17 }],
+  ['cheve', 'Joël Chevé', 'JC', 'La France Adulte', 'neutre', 'rempart', ['Bon sens', 'Maturité', 'Pas de côté', 'Âge de raison'], { hair: 0xbdbdbd, style: 'short', suit: 0x3b4252 }],
+  ['dubuisson', 'Emmanuel Dubuisson', 'ED', 'Sans étiquette', 'neutre', 'protecteur', ['Proposition', 'Citoyenneté', 'Covoiturage', 'Union'], { hair: 0x4a3426, style: 'short', suit: 0x30384a }],
+  ['egger', 'Clara Egger', 'CE', 'Solution démocratique', 'neutre', 'enchanteur', ['RIC', 'Bulletin', 'Agora', 'Démocratie directe'], { hair: 0x7a5236, style: 'long', suit: 0x4a5a7a, fem: 1 }],
+  ['markovic', 'Mira Markovic', 'MM', 'Parti animaliste', 'neutre', 'soigneur', ['Pétition', 'Refuge', 'Transhumance', 'Arche de Noé'], { hair: 0x3a2a20, style: 'long', suit: 0x6a8a3a, fem: 1 }],
+  ['mikolajczak', 'Antoine Mikolajczak', 'AM', 'Équinoxe', 'neutre', 'tireur', ['Tableur', 'Expertise', 'Cap', 'Équinoxe'], { hair: 0x6b4a32, style: 'short', suit: 0x2f4f6a }],
+  ['polony', 'Natacha Polony', 'NP', 'Sans étiquette', 'neutre', 'mage', ['Éditorial', 'Souveraineté', 'Chronique', 'Une de magazine'], { hair: 0xe0c27a, style: 'short', suit: 0x2a2f3a, fem: 1 }],
+  ['riner', 'Teddy Riner', 'TR', 'Sans étiquette', 'neutre', 'colosse', ['Ippon', 'Kimono', 'Balayage', 'Médaille d’or'], { hair: 0x161210, style: 'bald', suit: 0xf2f2f2, skin: 0x7a5238, height: 1.25 }],
+  ['verdier', 'Fabien Verdier', 'FV', 'Sans étiquette', 'neutre', 'duelliste', ['Interpellation', 'Coup de poing', 'Avancée', 'Sursaut'], { hair: 0x4a3426, style: 'messy', suit: 0x3b4252 }],
+];
+for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {
+  const A = ARCH[arch];
+  CANDIDATES.push({
+    id, name, initials, party, team, role: arch, fem: !!look.fem, ...CLASS_STATS[A.cls],
+    abilities: A.kit(names), look,
+  });
+}
+for (const d of CANDIDATES) {
+  d.cls = ARCH[d.role].cls;
+  d.lane = CLASS_LANE[d.cls];
+  d.neutral = d.team === 'neutre';
+  if (d.neutral) { d.hp = Math.round(d.hp * NEUTRAL_MALUS); d.ad = Math.round(d.ad * NEUTRAL_MALUS); }
+}
 const CAND_BY_ID = Object.fromEntries(CANDIDATES.map((c) => [c.id, c]));
 
 // ─── Matériel de campagne ────────────────────────────────────────────────────
+// Chaque objet personnel a 3 niveaux : chaque achat le fait monter d'un niveau, plus cher et plus puissant.
+// ap = puissance des sorts ; dmg = dégâts des attaques et des sorts.
 const ITEMS = [
-  { id: 'portevoix', name: 'Porte-voix', icon: '📣', cost: 300, dmg: 0.2, desc: '+20 % dégâts des polémiques' },
-  { id: 'cm', name: 'Community manager', icon: '📱', cost: 350, dmg: 0.12, range: 60, desc: '+12 % dégâts, +60 portée' },
-  { id: 'media', name: 'Media training', icon: '🎙️', cost: 300, hp: 0.25, desc: '+25 % crédibilité max' },
-  { id: 'bus', name: 'Bus de campagne', icon: '🚌', cost: 250, spd: 0.12, desc: '+12 % vitesse de déplacement' },
-  { id: 'agence', name: 'Agence de com', icon: '📰', cost: 400, as: 0.3, desc: '+30 % vitesse d’attaque' },
-  { id: 'conseillers', name: 'Équipe de conseillers', icon: '🧑‍💼', cost: 400, cdr: 0.2, desc: '−20 % temps de recharge' },
-  // améliorations collectives des militants (niveau max 3 par camp)
+  { id: 'portevoix', icon: '📣', stat: 'dmg', fmt: (v) => `+${Math.round(v * 100)} % dégâts`,
+    lv: [{ name: 'Porte-voix', cost: 250, v: 0.15 }, { name: 'Mégaphone', cost: 550, v: 0.35 }, { name: 'Sono de stade', cost: 1000, v: 0.65 }] },
+  { id: 'plateau', icon: '📺', stat: 'ap', fmt: (v) => `+${Math.round(v * 100)} % puissance des sorts`,
+    lv: [{ name: 'Passage radio', cost: 300, v: 0.2 }, { name: 'Plateau télé', cost: 650, v: 0.45 }, { name: 'Débat du 20 h', cost: 1150, v: 0.8 }] },
+  { id: 'agence', icon: '📰', stat: 'as', fmt: (v) => `+${Math.round(v * 100)} % vitesse d’attaque`,
+    lv: [{ name: 'Attaché de presse', cost: 300, v: 0.2 }, { name: 'Agence de com', cost: 650, v: 0.45 }, { name: 'Cabinet de conseil', cost: 1150, v: 0.8 }] },
+  { id: 'cm', icon: '📱', stat: 'range', fmt: (v) => `+${v} portée, +${Math.round(v / 4)} % dégâts`,
+    lv: [{ name: 'Community manager', cost: 300, v: 40 }, { name: 'Équipe digitale', cost: 600, v: 80 }, { name: 'Armée de trolls', cost: 1050, v: 130 }] },
+  { id: 'media', icon: '🎙️', stat: 'hp', fmt: (v) => `+${Math.round(v * 100)} % crédibilité max`,
+    lv: [{ name: 'Media training', cost: 250, v: 0.2 }, { name: 'Coach vocal', cost: 550, v: 0.45 }, { name: 'Storytelling', cost: 1000, v: 0.8 }] },
+  { id: 'conseillers', icon: '🧑‍💼', stat: 'cdr', fmt: (v) => `−${Math.round(v * 100)} % recharge`,
+    lv: [{ name: 'Conseiller', cost: 300, v: 0.1 }, { name: 'Équipe de conseillers', cost: 650, v: 0.2 }, { name: 'Think tank', cost: 1100, v: 0.3 }] },
+  { id: 'bus', icon: '🚌', stat: 'spd', fmt: (v) => `+${Math.round(v * 100)} % vitesse`,
+    lv: [{ name: 'Vélo', cost: 200, v: 0.08 }, { name: 'Bus de campagne', cost: 450, v: 0.14 }, { name: 'Jet privé', cost: 800, v: 0.2 }] },
+  // améliorations collectives des militants (niveau max 3 par camp, de plus en plus chères)
   { id: 'tracts', team: true, key: 'hp', name: 'Tracts', icon: '📄', cost: 250, desc: 'Tous vos militants : +20 % PV' },
   { id: 'banderoles', team: true, key: 'dmg', name: 'Banderoles', icon: '🚩', cost: 250, desc: 'Tous vos militants : +20 % dégâts' },
   { id: 'baskets', team: true, key: 'spd', name: 'Baskets', icon: '👟', cost: 200, desc: 'Tous vos militants : +12 % vitesse' },
 ];
 const ITEM_BY_ID = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
+// un id répété = monter cet objet d'un niveau
 const BUILD_ORDER = {
-  tribun: ['portevoix', 'conseillers', 'tracts', 'cm', 'media', 'bus', 'portevoix'],
-  tireur: ['agence', 'portevoix', 'banderoles', 'cm', 'bus', 'media', 'agence'],
-  rempart: ['media', 'tracts', 'bus', 'conseillers', 'baskets', 'media', 'portevoix'],
+  mage: ['plateau', 'conseillers', 'tracts', 'plateau', 'media', 'bus', 'plateau', 'conseillers'],
+  combattant: ['portevoix', 'media', 'tracts', 'portevoix', 'media', 'bus', 'portevoix', 'media'],
+  tireur: ['agence', 'portevoix', 'banderoles', 'agence', 'portevoix', 'cm', 'agence', 'portevoix'],
+  assassin: ['portevoix', 'bus', 'plateau', 'portevoix', 'plateau', 'media', 'portevoix', 'plateau'],
+  soutien: ['media', 'conseillers', 'tracts', 'plateau', 'baskets', 'conseillers', 'media', 'plateau'],
+  tank: ['media', 'tracts', 'media', 'conseillers', 'banderoles', 'media', 'portevoix', 'bus'],
 };
 
 const BUREAU_NAMES = [

@@ -46,9 +46,9 @@ const AI = (() => {
   }
 
   function shop(S, c) {
-    const order = BUILD_ORDER[c.def.role];
+    const order = BUILD_ORDER[ARCH[c.def.role].build];
     const owned = {};
-    for (const id of c.items) owned[id] = (owned[id] || 0) + 1;
+    for (const id of c.items) owned[id] = c.lv[id];
     const seen = {};
     for (const id of order) {
       seen[id] = (seen[id] || 0) + 1;
@@ -56,7 +56,9 @@ const AI = (() => {
       if (it.team) {
         if (S.teams[c.team].up[it.key] >= Math.min(3, seen[id])) continue;
       } else if ((owned[id] || 0) >= seen[id]) continue;
-      if (c.dons >= it.cost) { Game.buy(c, id); return; }
+      const nx = Game.itemNext(c, id);
+      if (!nx) continue;
+      if (c.dons >= nx.cost) { Game.buy(c, id); return; }
       return; // on économise pour l'objet suivant
     }
   }
@@ -73,11 +75,21 @@ const AI = (() => {
       let ok = false, tx = foe ? foe.x : c.x, ty = foe ? foe.y : c.y;
       switch (ab.type) {
         case 'skillshot':
-          ok = foe && fd < ab.range * 0.85 && (key !== 'R');
+          ok = foe && fd < Math.min(ab.range * 0.85, 1500) && (key !== 'R' || foeR < 0.6 || mode === 'fight');
           if (ok && foe.moveTo) { const n = U.norm(foe.moveTo.x - foe.x, foe.moveTo.y - foe.y); const lead = (fd / ab.speed) * foe.st.speed * 0.6; tx += n.x * lead; ty += n.y * lead; }
           break;
         case 'blast':
+        case 'zone':
           ok = foe && fd < ab.range && (key !== 'R' || foeR < 0.7 || mode === 'fight');
+          break;
+        case 'selfheal':
+          ok = hpR < 0.5;
+          break;
+        case 'regen':
+          ok = hpR < 0.45 && (!!foe || hpR < 0.3);
+          break;
+        case 'globalheal':
+          ok = S.cands.filter((a) => a.team === c.team && !a.dead && a.hp / a.st.maxHp < 0.5).length >= (hpR < 0.35 ? 1 : 2);
           break;
         case 'nova':
           ok = foe && fd < ab.radius + foe.r - 10;
@@ -86,7 +98,8 @@ const AI = (() => {
           if (mode === 'flee') {
             const q = MAP.QG[c.team];
             tx = q.x; ty = q.y; ok = !!foe && fd < 500;
-          } else ok = foe && foeR < 0.35 && fd > c.st.range * 0.8 && fd < c.st.range + ab.range && mode === 'fight';
+          } else if (ab.dmg) ok = foe && mode === 'fight' && fd < ab.range + 60 && fd > 120;
+          else ok = foe && foeR < 0.35 && fd > c.st.range * 0.8 && fd < c.st.range + ab.range && mode === 'fight';
           break;
         case 'shield':
           if (!ab.radius) ok = foe && fd < 600;
@@ -108,7 +121,8 @@ const AI = (() => {
       for (const key of ['Q', 'W']) {
         const ab = abs[key];
         if (c.cd[key] > 0 || !ab.dmg) continue;
-        const reach = ab.type === 'nova' ? ab.radius : ab.range * 0.7;
+        if (!['skillshot', 'nova', 'blast', 'zone'].includes(ab.type) || !Game.unlocked(c, key)) continue;
+        const reach = ab.type === 'nova' ? ab.radius : Math.min(ab.range, 1000) * 0.7;
         const near = S.mil.filter((m) => m.team !== c.team && !m.converted && U.dist(m, c) < reach);
         if (near.length >= 3) {
           const t = near[0];

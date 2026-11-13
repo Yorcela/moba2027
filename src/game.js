@@ -6,7 +6,27 @@ const Game = (() => {
   const LANES = ['top', 'mid', 'bot'];
 
   // ── Création de la partie ──
-  function newGame(playerCandId) {
+  // Composition des équipes : 1 tank, 1 DPS, 1 soutien par camp, pris dans le camp ou chez les neutres
+  function buildRoster(playerCandId, playerTeam) {
+    const used = new Set();
+    const roster = [];
+    const pd = CAND_BY_ID[playerCandId];
+    if (pd) { roster.push({ def: pd, team: playerTeam || pd.team, player: true }); used.add(pd.id); }
+    for (const team of ['gauche', 'droite']) {
+      for (const cls of ['tank', 'dps', 'soutien']) {
+        if (roster.some((r) => r.team === team && r.def.cls === cls)) continue;
+        const pool = CANDIDATES.filter((d) => d.cls === cls && !used.has(d.id) && (d.team === team || d.neutral));
+        // les candidats du camp sont bien plus souvent choisis que les neutres
+        const weighted = pool.flatMap((d) => (d.neutral ? [d] : [d, d, d]));
+        const d = U.pick(weighted);
+        used.add(d.id);
+        roster.push({ def: d, team });
+      }
+    }
+    return roster;
+  }
+
+  function newGame(playerCandId, playerTeam, roster) {
     nextId = 1;
     S = {
       t: 0, over: false, winner: null, president: null, reason: '',
@@ -17,7 +37,10 @@ const Game = (() => {
         droite: { up: { hp: 0, dmg: 0, spd: 0 }, parrainages: 0 },
       },
       nextWave: CFG.waveFirst, waveN: 0, player: null,
+      // parties courtes : on monte plus vite dans les sondages
+      pollMul: Math.sqrt(600 / CFG.timeLimit), elyseeWarned: {},
     };
+    CFG.secondTour = Math.round(CFG.timeLimit * 0.6);
     MAP.bureauDefs.forEach(([lane, home, pos], i) => {
       S.bureaux.push({
         id: 'b' + i, kind: 'bureau', lane, home, owner: home, g: CFG.bureauMax,
@@ -31,9 +54,10 @@ const Game = (() => {
     MAP.campDefs.forEach(([type, pos, side, name], i) => {
       S.camps.push({ id: 'c' + i, kind: 'camp', type, side, name, x: pos.x, y: pos.y, r: 56, availableAt: 0, busy: null, h: { gauche: 0, droite: 0 } });
     });
-    for (const def of CANDIDATES) {
-      const c = mkCand(def);
-      if (def.id === playerCandId) { c.isPlayer = true; S.player = c; }
+    S.roster = roster || buildRoster(playerCandId, playerTeam);
+    for (const r of S.roster) {
+      const c = mkCand(r.def, r.team);
+      if (r.player) { c.isPlayer = true; S.player = c; }
       S.cands.push(c);
     }
     for (const c of S.cands) c.st = stats(c);
@@ -41,14 +65,14 @@ const Game = (() => {
     return S;
   }
 
-  function mkCand(def) {
-    const q = MAP.QG[def.team];
+  function mkCand(def, team) {
+    const q = MAP.QG[team];
     return {
-      id: nextId++, kind: 'cand', def, team: def.team, x: q.x + U.rand(-30, 30), y: q.y + U.rand(-60, 60), r: 26,
-      hp: def.hp, lastMax: def.hp, dead: false, respawnAt: 0, I: CFG.startI, dons: CFG.startDons, items: [],
+      id: nextId++, kind: 'cand', def, team, x: q.x + U.rand(-30, 30), y: q.y + U.rand(-60, 60), r: 26,
+      hp: def.hp, lastMax: def.hp, dead: false, respawnAt: 0, I: CFG.startI, dons: CFG.startDons, items: [], lv: {}, dots: [], regen: null, weakUntil: 0, weakPct: 0,
       cd: { Q: 0, W: 0, E: 0, R: 0 }, atkCd: 0, shield: 0, shieldUntil: 0, buffs: [], slowUntil: 0, slowPct: 0, stunUntil: 0,
       moveTo: null, target: null, campTarget: null, channel: null, dash: null, hitBy: {}, lastAttackedCandAt: -99,
-      lane: LANE_BY_ROLE[def.role], ai: { think: 0, nextJungle: U.rand(45, 80), off: U.rand(-60, 60) },
+      lane: def.lane, ai: { think: 0, nextJungle: U.rand(45, 80), off: U.rand(-60, 60) },
       kills: 0, deaths: 0, conv: 0, isPlayer: false, unl: {},
     };
   }
@@ -61,8 +85,17 @@ const Game = (() => {
   function gain(c, x) {
     if (x <= 0) return 0;
     const u = undecided();
-    const amt = Math.min(u, x * CFG.pollGain * Math.max(0.25, u / 100));
-    c.I += amt;
+    const avg = (100 - u) / S.cands.length;
+    const catchUp = avg > 0 ? 1 + Math.max(0, (avg - c.I) / avg) : 1; // les retardataires remontent plus vite
+    const amt = x * CFG.pollGain * S.pollMul * Math.max(0.25, u / 100) * catchUp;
+    const fromU = Math.min(u, amt);
+    c.I += fromU;
+    // plus d'indécis : les électeurs viennent du candidat adverse en tête
+    if (amt > fromU) {
+      const lead = S.cands.filter((e) => e.team !== c.team).sort((a, b) => b.I - a.I)[0];
+      const t = Math.min(lead.I, (amt - fromU) * 0.5);
+      lead.I -= t; c.I += t;
+    }
     checkUnlock(c);
     return amt;
   }
@@ -90,11 +123,14 @@ const Game = (() => {
   function foeBot(c) { return S.player && !c.isPlayer && c.team !== S.player.team; }
 
   function stats(c) {
-    let dmg = 0, hp = 0, spd = 0, range = 0, as = 0, cdr = 0;
+    const b = { dmg: 0, ap: 0, hp: 0, spd: 0, range: 0, as: 0, cdr: 0 };
     for (const id of c.items) {
       const it = ITEM_BY_ID[id];
-      dmg += it.dmg || 0; hp += it.hp || 0; spd += it.spd || 0; range += it.range || 0; as += it.as || 0; cdr += it.cdr || 0;
+      const v = it.lv[c.lv[id] - 1].v;
+      b[it.stat] += v;
+      if (it.stat === 'range') b.dmg += v / 400;
     }
+    let { dmg, hp, spd, range, as, cdr } = b;
     const m = power(c);
     let speed = c.def.spd * (1 + spd);
     let asMul = 1 + as;
@@ -102,11 +138,13 @@ const Game = (() => {
       if (b.until <= S.t) continue;
       if (b.haste) speed *= 1 + b.haste;
       if (b.as) asMul += b.as;
+      if (b.dmg) dmg += b.dmg;
     }
     if (c.slowUntil > S.t) speed *= 1 - c.slowPct;
-    const dm = foeBot(c) ? DIFFICULTY[CFG.difficulty].dmg : 1;
+    let dm = foeBot(c) ? DIFFICULTY[CFG.difficulty].dmg : 1;
+    if (c.weakUntil > S.t) { dm *= 1 - c.weakPct; speed *= 1 - c.weakPct * 0.6; } // affaibli
     return {
-      m, maxHp: c.def.hp * m * (1 + hp), ad: c.def.ad * m * (1 + dmg) * dm, ap: m * (1 + dmg) * dm,
+      m, maxHp: c.def.hp * m * (1 + hp), ad: c.def.ad * m * (1 + dmg) * dm, ap: m * (1 + dmg + b.ap) * dm,
       range: c.def.range + range, as: c.def.as * asMul, speed, cdr: Math.min(0.4, cdr),
     };
   }
@@ -146,7 +184,7 @@ const Game = (() => {
   }
 
   function koCand(c, src) {
-    c.dead = true; c.deaths++; c.hp = 0; c.channel = null; c.dash = null; c.target = null; c.moveTo = null; c.campTarget = null;
+    c.dead = true; c.deaths++; c.hp = 0; c.channel = null; c.dots = []; c.regen = null; c.weakUntil = 0; c.dash = null; c.target = null; c.moveTo = null; c.campTarget = null;
     if (c.busyCamp) { c.busyCamp.busy = null; c.busyCamp = null; }
     c.respawnAt = S.t + 5 + (S.t / 60) * 0.5;
     c.diedAt = S.t;
@@ -260,8 +298,11 @@ const Game = (() => {
         st.ctrl = null;
       }
       if (Math.abs(st.gauge) >= st.max) {
-        if (st.id === 'elysee') return endGame(team, 'Élysée conquis');
-        if (st.ctrl !== team) {
+        if (st.ctrl !== team && st.id === 'elysee') {
+          st.ctrl = team;
+          addLog(`Élysée : la ${TEAMS[team].name.toLowerCase()} remporte la présidentielle !`, team);
+          float(st.x, st.y - 80, 'Présidentielle gagnée !', TEAMS[team].light, true);
+        } else if (st.ctrl !== team) {
           st.ctrl = team;
           addLog(`${st.name} : majorité ${TEAMS[team].name.toLowerCase()} !`, team);
           float(st.x, st.y - 80, st.id === 'an' ? 'Majorité à l’Assemblée !' : 'Majorité au Sénat !', TEAMS[team].light, true);
@@ -271,10 +312,24 @@ const Game = (() => {
     float(m.x, m.y - 16, 'A voté !', '#ffffff');
   }
 
-  function endGame(team, reason) {
+  // Victoire : Élysée plein ET majorité à l'Assemblée ou au Sénat
+  function elyseeFull(team) { const o = S.obj.mid; return team === 'gauche' ? o.gauge >= o.max : o.gauge <= -o.max; }
+  function checkVictory() {
+    if (S.over) return;
+    for (const team of ['gauche', 'droite']) {
+      if (!elyseeFull(team)) continue;
+      const an = S.obj.top.ctrl === team, sen = S.obj.bot.ctrl === team;
+      if (an || sen) return endGame(team, `Présidentielle et majorité ${an && sen ? 'dans les deux chambres' : an ? 'à l’Assemblée' : 'au Sénat'}`);
+      if (!S.elyseeWarned[team]) {
+        S.elyseeWarned[team] = true;
+        addLog(`Cohabitation ! La ${TEAMS[team].name.toLowerCase()} tient l’Élysée mais doit encore gagner l’Assemblée ou le Sénat`, team);
+      }
+    }
+  }
+  function endGame(team, reason, pres) {
     S.over = true; S.winner = team; S.reason = reason;
     const mates = S.cands.filter((c) => c.team === team).sort((a, b) => b.I - a.I);
-    S.president = mates[0];
+    S.president = pres || mates[0];
   }
 
   // ── Actions des candidats ──
@@ -292,7 +347,7 @@ const Game = (() => {
       case 'skillshot':
         S.proj.push({
           kind: 'shot', src: c, team: c.team, x: c.x, y: c.y, vx: n.x * ab.speed, vy: n.y * ab.speed, range: ab.range, trav: 0,
-          dmg: ab.dmg * ap, width: ab.width, slow: ab.slow, slowDur: ab.slowDur, stun: ab.stun, pierce: ab.pierce, hit: new Set(), label: ab.name, word: ab.name,
+          dmg: ab.dmg * ap, width: ab.width, ab, pierce: ab.pierce, hit: new Set(), label: ab.name, word: ab.name,
         });
         break;
       case 'nova':
@@ -312,6 +367,7 @@ const Game = (() => {
         break;
       }
       case 'shield':
+        if (ab.radius) S.fx.push({ type: 'ring', x: c.x, y: c.y, radius: ab.radius, team: c.team, until: S.t + 0.4, t0: S.t, soft: true });
         for (const a of alliesNear(c, ab.radius)) {
           if (a !== c) gain(c, 0.15); // soutenir ses alliés compte aussi dans les sondages
           a.shield = Math.max(a.shieldUntil > S.t ? a.shield : 0, 0) + ab.amount * ap;
@@ -324,6 +380,28 @@ const Game = (() => {
         S.fx.push({ type: 'heal', x: c.x + dx * k, y: c.y + dy * k, radius: ab.radius, team: c.team, hps: ab.hps * ap, until: S.t + ab.dur, t0: S.t });
         break;
       }
+      case 'zone': {
+        const k = Math.min(1, ab.range / Math.max(1, d));
+        S.fx.push({ type: 'zone', x: c.x + dx * k, y: c.y + dy * k, radius: ab.radius, team: c.team, src: c, dps: ab.dps * ap, until: S.t + ab.dur, t0: S.t });
+        break;
+      }
+      case 'selfheal':
+        heal(c, c, c.st.maxHp * ab.pct);
+        if (ab.haste) c.buffs.push({ haste: ab.haste, until: S.t + ab.dur });
+        S.fx.push({ type: 'ring', x: c.x, y: c.y, radius: 90, team: c.team, until: S.t + 0.4, t0: S.t, heal: true });
+        break;
+      case 'regen':
+        c.regen = { hps: (c.st.maxHp * ab.pct) / ab.dur, until: S.t + ab.dur };
+        break;
+      case 'globalheal':
+        for (const a of S.cands) {
+          if (a.team !== c.team || a.dead) continue;
+          heal(c, a, a.st.maxHp * ab.pct);
+          if (ab.haste) a.buffs.push({ haste: ab.haste, until: S.t + ab.dur });
+          S.fx.push({ type: 'ring', x: a.x, y: a.y, radius: 110, team: a.team, until: S.t + 0.6, t0: S.t, heal: true });
+          if (a !== c) gain(c, 0.2);
+        }
+        break;
       case 'haste':
         for (const a of alliesNear(c, ab.radius)) {
           if (a !== c) gain(c, 0.15);
@@ -333,9 +411,24 @@ const Game = (() => {
         S.fx.push({ type: 'ring', x: c.x, y: c.y, radius: ab.radius, team: c.team, until: S.t + 0.35, t0: S.t, soft: true });
         break;
     }
+    if (ab.buff) c.buffs.push({ dmg: ab.buff.dmg, until: S.t + ab.buff.dur });
     c.cd[key] = ab.cd * (1 - st.cdr);
     if (c.channel && c.channel.type === 'recall') c.channel = null;
     return true;
+  }
+
+  // effets secondaires d'un sort sur un candidat touché
+  function afflict(src, e, ab) {
+    if (!ab || e.kind !== 'cand') return;
+    if (ab.slow) { e.slowPct = ab.slow; e.slowUntil = S.t + ab.slowDur; }
+    if (ab.stun) e.stunUntil = Math.max(e.stunUntil, S.t + ab.stun);
+    if (ab.dot) e.dots.push({ src, dps: ab.dot.dps * src.st.ap, until: S.t + ab.dot.dur });
+    if (ab.weaken) { e.weakPct = Math.max(e.weakUntil > S.t ? e.weakPct : 0, ab.weaken.pct); e.weakUntil = S.t + ab.weaken.dur; }
+  }
+  function heal(src, a, amt) {
+    const before = a.hp;
+    a.hp = Math.min(a.st.maxHp, a.hp + amt);
+    if (a.hp - before > 1 && (a.isPlayer || src.isPlayer)) float(a.x, a.y - 30, `+${Math.round(a.hp - before)}`, '#7be38f');
   }
 
   function alliesNear(c, radius) {
@@ -349,8 +442,7 @@ const Game = (() => {
       if (e.team !== enemy || e.dead) continue;
       if (Math.hypot(e.x - x, e.y - y) <= radius + e.r) {
         damage(src, e, dmg);
-        if (ab.slow) { e.slowPct = ab.slow; e.slowUntil = S.t + ab.slowDur; }
-        if (ab.stun) e.stunUntil = Math.max(e.stunUntil, S.t + ab.stun);
+        afflict(src, e, ab);
       }
     }
     for (const m of S.mil) {
@@ -367,24 +459,38 @@ const Game = (() => {
 
   function inOwnQG(c) { return U.dist(c, MAP.QG[c.team]) <= CFG.qgRadius + 20; }
 
+  // prochain niveau d'un objet : de plus en plus cher, de plus en plus puissant
+  function itemNext(c, id) {
+    const it = ITEM_BY_ID[id];
+    if (it.team) {
+      const lvl = S.teams[c.team].up[it.key];
+      return lvl >= 3 ? null : { lvl: lvl + 1, name: it.name, cost: it.cost * (lvl + 1), desc: it.desc };
+    }
+    const lvl = c.lv[id] || 0;
+    if (lvl >= it.lv.length) return null;
+    const L = it.lv[lvl];
+    return { lvl: lvl + 1, name: L.name, cost: L.cost, desc: it.fmt(L.v) };
+  }
   function buy(c, id) {
     const it = ITEM_BY_ID[id];
     if (!it || S.over) return 'Indisponible';
     if (!c.dead && !inOwnQG(c)) return 'Achats uniquement au QG de campagne';
-    if (c.dons < it.cost) return 'Pas assez de dons';
+    const nx = itemNext(c, id);
+    if (!nx) return 'Niveau maximum atteint';
+    if (!it.team && !c.lv[id] && c.items.length >= 6) return 'Inventaire plein (6)';
+    if (c.dons < nx.cost) return 'Pas assez de dons';
     if (it.team) {
       const up = S.teams[c.team].up;
-      if (up[it.key] >= 3) return 'Niveau maximum atteint';
       up[it.key]++;
       addLog(`${c.def.name} équipe les militants : ${it.name} (niv. ${up[it.key]})`, c.team);
     } else {
-      if (c.items.length >= 6) return 'Inventaire plein (6)';
       const ratio = c.hp / c.st.maxHp;
-      c.items.push(id);
+      if (!c.lv[id]) c.items.push(id);
+      c.lv[id] = nx.lvl;
       c.st = stats(c);
       c.hp = ratio * c.st.maxHp; c.lastMax = c.st.maxHp;
     }
-    c.dons -= it.cost;
+    c.dons -= nx.cost;
     return null;
   }
 
@@ -421,14 +527,11 @@ const Game = (() => {
     updateFx(dt);
     S.floats = S.floats.filter((f) => f.until > S.t);
 
+    checkVictory();
+    // fin du temps : le candidat en tête des sondages l'emporte pour son camp
     if (S.t >= CFG.timeLimit && !S.over) {
-      const g = S.obj.mid.gauge;
-      let team = g > 0 ? 'gauche' : g < 0 ? 'droite' : null;
-      if (!team) {
-        const tot = (t) => S.cands.filter((c) => c.team === t).reduce((a, c) => a + c.I, 0);
-        team = tot('gauche') >= tot('droite') ? 'gauche' : 'droite';
-      }
-      endGame(team, 'Scrutin clos (temps écoulé)');
+      const top = [...S.cands].sort((a, b) => b.I - a.I)[0];
+      endGame(top.team, `Fin du temps : ${top.def.name} arrive en tête des sondages`, top);
     }
   }
 
@@ -466,6 +569,16 @@ const Game = (() => {
     const eq = MAP.QG[TEAMS[c.team].enemy];
     if (U.dist(c, eq) < CFG.qgRadius + 40) damage(null, c, 400 * dt);
     if (c.dead) return;
+
+    // Brûlures (dégâts sur la durée) et régénération
+    if (c.dots.length) {
+      c.dots = c.dots.filter((d) => d.until > S.t);
+      for (const d of c.dots) { damage(d.src, c, d.dps * dt); if (c.dead) return; }
+    }
+    if (c.regen) {
+      if (c.regen.until <= S.t) c.regen = null;
+      else c.hp = Math.min(c.st.maxHp, c.hp + c.regen.hps * dt);
+    }
 
     // Zones de soin
     for (const f of S.fx) {
@@ -546,9 +659,13 @@ const Game = (() => {
 
   // immobile 12 s de son côté de la carte, 7 s chez l'adversaire, 10 s en zone neutre
   function campDuration(c, camp) {
-    if (camp.side === c.team) return CFG.campChannelOwn;
-    if (camp.side === 'neutre') return CFG.campChannel;
-    return CFG.campChannelFoe;
+    const base = camp.side === c.team ? CFG.campChannelOwn : camp.side === 'neutre' ? CFG.campChannel : CFG.campChannelFoe;
+    // chaque meeting déjà organisé par ce camp dure plus longtemps (mais rapporte plus)
+    return camp.type === 'meeting' ? base + CFG.meetingExtra * camp.h[c.team] : base;
+  }
+  function campReward(team, camp) {
+    const h = camp.h[team];
+    return camp.type === 'mairie' ? Math.round(12 * (1 + 0.35 * h)) : Math.round(100 + 70 * h);
   }
 
   function alive(t) { return t.kind === 'cand' ? !t.dead : !t.converted && S.mil.includes(t); }
@@ -587,12 +704,12 @@ const Game = (() => {
     const h = camp.h[team];
     if (camp.type === 'mairie') {
       // plus le camp a déjà été vidé par ce camp, plus la mairie rapporte de parrainages
-      const p = Math.round(12 * (1 + 0.35 * h));
+      const p = campReward(team, camp);
       gain(c, p / 6); S.teams[team].parrainages += p;
       float(camp.x, camp.y - 60, `+${p} parrainages`, '#9be28f', true);
       camp.availableAt = S.t + CFG.mairieRespawn;
     } else {
-      const d = Math.round(90 + 25 * h);
+      const d = campReward(team, camp);
       c.dons += d;
       float(camp.x, camp.y - 60, `+${d} € de dons`, '#ffd34d', true);
       camp.availableAt = S.t + CFG.meetingRespawn;
@@ -739,10 +856,7 @@ const Game = (() => {
           if (Math.hypot(t.x - p.x, t.y - p.y) <= p.width + t.r) {
             p.hit.add(t);
             damage(p.src, t, p.dmg);
-            if (t.kind === 'cand') {
-              if (p.slow) { t.slowPct = p.slow; t.slowUntil = S.t + p.slowDur; }
-              if (p.stun) t.stunUntil = Math.max(t.stunUntil, S.t + p.stun);
-            }
+            afflict(p.src, t, p.ab);
             if (!p.pierce) { done = true; break; }
           }
         }
@@ -752,7 +866,7 @@ const Game = (() => {
     S.proj = keep;
   }
 
-  function updateFx() {
+  function updateFx(dt) {
     const keep = [];
     for (const f of S.fx) {
       if (f.type === 'blast') {
@@ -762,14 +876,17 @@ const Game = (() => {
           f.until = S.t + 0.4;
         }
         if (!f.done || S.t < f.until) keep.push(f);
-      } else if (S.t < f.until) keep.push(f);
+      } else {
+        if (f.type === 'zone') aoe(f.src, f.x, f.y, f.radius, f.dps * dt, {});
+        if (S.t < f.until) keep.push(f);
+      }
     }
     S.fx = keep;
   }
 
   return {
     newGame, update, cast, buy, recall, share, power, stats, canAct, campAvailable, inOwnQG, laneOwnedBy, station,
-    foeBot, unlocked, undecided, campDuration, alive,
+    foeBot, unlocked, undecided, campDuration, campReward, alive, itemNext, elyseeFull, buildRoster,
     get S() { return S; },
   };
 })();

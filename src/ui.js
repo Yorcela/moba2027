@@ -15,11 +15,13 @@
   let kbMoving = false;
 
   // préférences (confort personnel, peut être indisponible)
-  const prefs = { controls: 'mixte', difficulty: 'facile' };
+  const prefs = { controls: 'mixte', difficulty: 'facile', duration: 10 };
   try { Object.assign(prefs, JSON.parse(localStorage.getItem('moba2027-prefs') || '{}')); } catch (e) { /* stockage indisponible */ }
   function savePrefs() { try { localStorage.setItem('moba2027-prefs', JSON.stringify(prefs)); } catch (e) { /* ignore */ } }
   if (!DIFFICULTY[prefs.difficulty]) prefs.difficulty = 'facile';
   CFG.difficulty = prefs.difficulty;
+  if (!CFG.durations.includes(prefs.duration)) prefs.duration = 10;
+  CFG.timeLimit = prefs.duration * 60;
 
   // libellés des touches selon la disposition du clavier (ZQSD sur AZERTY)
   const keyLabel = { KeyW: 'W', KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyQ: 'Q', KeyE: 'E', KeyR: 'R' };
@@ -58,6 +60,9 @@
       <label>Difficulté
         <select id="opt-diff">${Object.entries(DIFFICULTY).map(([k, d]) => `<option value="${k}"${prefs.difficulty === k ? ' selected' : ''}>${d.label}</option>`).join('')}</select>
       </label>
+      <label>Durée
+        <select id="opt-dur">${CFG.durations.map((m) => `<option value="${m}"${prefs.duration === m ? ' selected' : ''}>${m} min</option>`).join('')}</select>
+      </label>
       <label>Contrôles
         <select id="opt-ctl">
           <option value="mixte"${prefs.controls === 'mixte' ? ' selected' : ''}>Flèches (ou souris) · sorts ${keyLabel.KeyQ} ${keyLabel.KeyW} ${keyLabel.KeyE} ${keyLabel.KeyR}</option>
@@ -65,25 +70,34 @@
         </select>
       </label>`;
     $('#opt-diff').onchange = (e) => { prefs.difficulty = e.target.value; CFG.difficulty = prefs.difficulty; savePrefs(); };
+    $('#opt-dur').onchange = (e) => { prefs.duration = +e.target.value; CFG.timeLimit = prefs.duration * 60; savePrefs(); };
     $('#opt-ctl').onchange = (e) => { prefs.controls = e.target.value; savePrefs(); renderMenu(); };
     $('#keys-help').innerHTML = controlsHelp();
     const list = $('#pick-cands');
     list.innerHTML = '';
-    if (!chosenTeam) { list.innerHTML = '<p class="hint">Choisissez d’abord votre camp : vous ne pourrez incarner qu’un candidat de ce camp.</p>'; return; }
-    for (const d of CANDIDATES.filter((c) => c.team === chosenTeam)) {
-      const card = document.createElement('button');
-      card.className = 'cand-card ' + d.team;
-      card.dataset.id = d.id;
-      const ab = d.abilities;
-      card.innerHTML = `
-        <div class="avatar ${d.team}">${d.initials}</div>
-        <div class="cc-body">
-          <div class="cc-name">${d.name}</div>
-          <div class="cc-meta">${d.party} · ${ROLE_NAMES[d.role]} · ${LANE_NAMES[LANE_BY_ROLE[d.role]]}</div>
-          <ul>${['Q', 'W', 'E', 'R'].map((k, i) => `<li><b>${spellKey(k, i)}</b> ${ab[k].name} — ${ab[k].desc}</li>`).join('')}</ul>
-        </div>`;
-      card.onclick = () => start(d.id);
-      list.appendChild(card);
+    if (!chosenTeam) { list.innerHTML = '<p class="hint">Choisissez d’abord votre camp : vous pourrez incarner un candidat de ce camp ou un candidat neutre (plus faible).</p>'; return; }
+    // candidats du camp + neutres (plus faibles), groupés par classe
+    for (const cls of ['tank', 'dps', 'soutien']) {
+      const h = document.createElement('h3');
+      h.className = 'cls-title';
+      h.textContent = { tank: 'Tanks — voie de l’Assemblée', dps: 'DPS — avenue de l’Élysée', soutien: 'Soutiens — voie du Sénat' }[cls];
+      list.appendChild(h);
+      for (const d of CANDIDATES.filter((c) => c.cls === cls && (c.team === chosenTeam || c.neutral))) {
+        const card = document.createElement('button');
+        card.className = 'cand-card ' + chosenTeam + (d.neutral ? ' neutral' : '');
+        card.dataset.id = d.id;
+        const ab = d.abilities;
+        card.title = ['Q', 'W', 'E', 'R'].map((k, i) => `${spellKey(k, i)} ${ab[k].name} — ${ab[k].desc}`).join('\n');
+        card.innerHTML = `
+          <div class="avatar ${chosenTeam}">${d.initials}</div>
+          <div class="cc-body">
+            <div class="cc-name">${d.name}${d.neutral ? ' <span class="neu">neutre · plus faible</span>' : ''}</div>
+            <div class="cc-meta">${d.party} · ${CLASS_NAMES[d.cls]} · ${ROLE_NAMES[d.role]}</div>
+            <ul>${['Q', 'W', 'E', 'R'].map((k, i) => `<li><b>${spellKey(k, i)}</b> ${ab[k].name} <span>— ${ab[k].desc}</span></li>`).join('')}</ul>
+          </div>`;
+        card.onclick = () => start(d.id, chosenTeam);
+        list.appendChild(card);
+      }
     }
   }
   function spellKey(k, i) { return prefs.controls === 'clavier' ? String(i + 1) : keyLabel['Key' + k]; }
@@ -99,9 +113,9 @@
   }
   renderMenu();
 
-  function start(candId) {
+  function start(candId, team) {
     syncKeyLabels();
-    Game.newGame(candId);
+    Game.newGame(candId, team);
     const p = Game.S.player;
     cam.x = p.x; cam.y = p.y; cam.locked = true;
     $('#menu').classList.add('hidden');
@@ -142,13 +156,13 @@
   function castAuto(k) {
     const S = Game.S, p = S.player;
     const ab = p.def.abilities[k];
-    if (['nova', 'shield', 'haste'].includes(ab.type)) return tryCast(k, p.x, p.y);
+    if (['nova', 'shield', 'haste', 'selfheal', 'regen', 'globalheal'].includes(ab.type)) return tryCast(k, p.x, p.y);
     if (ab.type === 'heal') {
       let hurt = p, low = p.hp / p.st.maxHp;
       for (const a of S.cands) if (a.team === p.team && !a.dead && U.dist(a, p) < ab.range && a.hp / a.st.maxHp < low) { low = a.hp / a.st.maxHp; hurt = a; }
       return tryCast(k, hurt.x, hurt.y);
     }
-    const reach = (ab.range || 600) + 150;
+    const reach = Math.min(ab.range || 600, 1600) + 150;
     const locked = p.target && Game.alive(p.target) && U.dist(p, p.target) < reach ? p.target : null;
     const t = locked || nearest(S.cands, p, reach) || nearest(S.mil, p, reach);
     if (ab.type === 'dash') {
@@ -181,7 +195,7 @@
       const b = document.createElement('button');
       b.className = 'shop-item' + (it.team ? ' team' : '');
       b.dataset.id = it.id;
-      b.innerHTML = `<span class="num">${i + 1}</span><span class="ic">${it.icon}</span><span class="nm">${it.name}</span><span class="ds">${it.desc}</span><span class="pr">${it.cost} €</span><span class="lv"></span>`;
+      b.innerHTML = `<span class="num">${i + 1}</span><span class="ic">${it.icon}</span><span class="nm"></span><span class="ds"></span><span class="pr"></span><span class="lv"></span>`;
       b.onclick = () => buyItem(it);
       list.appendChild(b);
     });
@@ -197,8 +211,13 @@
     $('#shop-where').textContent = inQG ? 'Vous êtes au QG : achats possibles.' : 'Retournez au QG de campagne (touche B) pour acheter.';
     for (const b of document.querySelectorAll('.shop-item')) {
       const it = ITEM_BY_ID[b.dataset.id];
-      b.disabled = !inQG || p.dons < it.cost;
-      b.querySelector('.lv').textContent = it.team ? `niv. ${S.teams[p.team].up[it.key]}/3` : '';
+      const nx = Game.itemNext(p, it.id);
+      const cur = it.team ? S.teams[p.team].up[it.key] : p.lv[it.id] || 0;
+      b.disabled = !inQG || !nx || p.dons < nx.cost;
+      b.querySelector('.nm').textContent = nx ? nx.name : (it.team ? it.name : it.lv[2].name);
+      b.querySelector('.ds').textContent = nx ? (cur ? 'Niveau suivant : ' : '') + nx.desc : 'Niveau maximum';
+      b.querySelector('.pr').textContent = nx ? nx.cost + ' €' : '—';
+      b.querySelector('.lv').textContent = `niv. ${cur}/3`;
     }
   }
   function toggleShop(force) {
@@ -355,7 +374,7 @@
 
   function updateHUD() {
     const S = Game.S, p = S.player;
-    $('#timer').textContent = U.fmtTime(S.t) + ' / ' + U.fmtTime(CFG.timeLimit);
+    $('#timer').textContent = 'Reste ' + U.fmtTime(Math.max(0, CFG.timeLimit - S.t));
     for (const k of ['top', 'mid', 'bot']) {
       const o = S.obj[k];
       const el = $('#obj-' + k);
@@ -363,7 +382,7 @@
       el.querySelector('.fill-g').style.width = Math.max(0, f) * 50 + '%';
       el.querySelector('.fill-d').style.width = Math.max(0, -f) * 50 + '%';
       const open = Game.laneOwnedBy('gauche', k) || Game.laneOwnedBy('droite', k);
-      el.querySelector('.st').textContent = o.ctrl ? 'Majorité ' + TEAMS[o.ctrl].name.toLowerCase()
+      el.querySelector('.st').textContent = o.ctrl ? (k === 'mid' ? 'Présidentielle : ' : 'Majorité ') + TEAMS[o.ctrl].name.toLowerCase()
         : `${Math.abs(o.gauge)}/${o.max} bulletins` + (open ? ' · voie ouverte' : '');
     }
     $('#poll-list').innerHTML = pollRows(S);
@@ -376,7 +395,9 @@
       + (nextK ? ` · ${KEY_LABEL[nextK]} à ${CFG.unlock[nextK]} %` : ' · tous les sorts débloqués');
     $('#me-items').innerHTML = Array.from({ length: 6 }, (_, i) => {
       const id = p.items[i];
-      return `<span class="slot" title="${id ? ITEM_BY_ID[id].name + ' — ' + ITEM_BY_ID[id].desc : 'vide'}">${id ? ITEM_BY_ID[id].icon : ''}</span>`;
+      if (!id) return '<span class="slot" title="vide"></span>';
+      const it = ITEM_BY_ID[id], L = it.lv[p.lv[id] - 1];
+      return `<span class="slot" title="${L.name} (niv. ${p.lv[id]}) — ${it.fmt(L.v)}">${it.icon}<sub>${p.lv[id]}</sub></span>`;
     }).join('');
     const e = p.def.fem ? 'e' : '';
     let status = '';
@@ -495,8 +516,8 @@
       let txt, col;
       if (S.t < c.availableAt) { txt = `${c.type === 'mairie' ? 'Mairie' : 'Meeting'} · ${Math.ceil(c.availableAt - S.t)} s`; col = '#9aa4b1'; }
       else if (c.busy) { txt = 'occupé'; col = '#ffd34d'; }
-      else if (c.type === 'mairie') { txt = `+${Math.round(12 * (1 + 0.35 * c.h[p.team]))} parrainages · ${Game.campDuration(p, c)} s`; col = '#9be28f'; }
-      else { txt = `+${Math.round(90 + 25 * c.h[p.team])} € de dons · ${Game.campDuration(p, c)} s`; col = '#ffd34d'; }
+      else if (c.type === 'mairie') { txt = `+${Game.campReward(p.team, c)} parrainages · ${Game.campDuration(p, c)} s`; col = '#9be28f'; }
+      else { txt = `+${Game.campReward(p.team, c)} € de dons · ${Game.campDuration(p, c)} s`; col = '#ffd34d'; }
       g.strokeText(txt, q.x, q.y); g.fillStyle = col; g.fillText(txt, q.x, q.y);
       if (!p.dead && !p.channel && Game.campAvailable(c) && U.dist(c, p) < 420) {
         const q2 = P(c.x, c.y, 60);
@@ -529,7 +550,13 @@
         g.fillStyle = 'rgba(0,0,0,0.8)'; g.fillRect(x, y + 27, w, 5);
         g.fillStyle = c.channel.type === 'recall' ? '#8fb4ff' : '#9be28f'; g.fillRect(x, y + 27, w * pr, 5);
       }
-      if (c.stunUntil > S.t) { g.fillStyle = '#ffd34d'; g.font = '800 15px system-ui'; g.fillText('✶ étourdi ✶', q.x, y - 26); }
+      const tags = [];
+      if (c.stunUntil > S.t) tags.push(['✶ étourdi', '#ffd34d']);
+      if (c.dots.some((d) => d.until > S.t)) tags.push(['🔥 brûlure', '#ff9a4d']);
+      if (c.weakUntil > S.t) tags.push(['▼ affaibli', '#c79bff']);
+      if (c.regen) tags.push(['✚ récupère', '#7be38f']);
+      g.font = '800 13px system-ui';
+      tags.forEach(([txt, col], i) => { g.strokeText(txt, q.x, y - 28 - i * 15); g.fillStyle = col; g.fillText(txt, q.x, y - 28 - i * 15); });
     }
     for (const f of S.floats) {
       const life = f.until - S.t, dur = f.big ? 2 : 1.2;
