@@ -179,12 +179,163 @@ const R3 = (() => {
     }
     bales.count = nb; trunks.count = crowns.count = nt; cows.count = spots.count = nc;
     for (const im of [bales, trunks, crowns, cows, spots]) { im.castShadow = true; scene.add(im); }
+    upgradeCountryside(fields, [trunks, crowns]);
+  }
+
+  // ── Kits Kenney (CC0) : chargement et instanciation génériques ──
+  async function loadKit(base, names) {
+    const L = await getLoader();
+    const out = {};
+    await Promise.all(names.map(async (n) => {
+      const gl = await L.loadAsync(`${base}${n}.glb`);
+      gl.scene.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(gl.scene);
+      const parts = [];
+      gl.scene.traverse((o) => { if (o.isMesh) parts.push({ geo: o.geometry, mat: o.material, m: o.matrixWorld.clone() }); });
+      out[n] = { box, size: box.getSize(new THREE.Vector3()), ctr: box.getCenter(new THREE.Vector3()), parts };
+    }));
+    return out;
+  }
+  // place[] = { x, z, size (plus grande dimension horizontale visée), ry, sy (étirement vertical), col }
+  // h : hauteur absolue visée (clôtures, haies), sinon proportions du modèle ; matFor : matériau de remplacement
+  function instanceModel(M, place, shadows, matFor) {
+    if (!place.length) return;
+    const base = new THREE.Matrix4(), pre = new THREE.Matrix4(), m4 = new THREE.Matrix4(), col = new THREE.Color();
+    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), pos = new THREE.Vector3(), scl = new THREE.Vector3();
+    pre.makeTranslation(-M.ctr.x, -M.box.min.y, -M.ctr.z);
+    const k0 = 1 / Math.max(M.size.x, M.size.z, 0.001);
+    for (const part of M.parts) {
+      const im = new THREE.InstancedMesh(part.geo, matFor ? matFor(part.mat) : part.mat, place.length);
+      place.forEach((pl, i) => {
+        const s = pl.size * k0;
+        if (pl.h) pl.sy = pl.h / (M.size.y * s);
+        q.setFromAxisAngle(up, pl.ry || 0);
+        base.compose(pos.set(pl.x, pl.y || 0, pl.z), q, scl.set(s, s * (pl.sy || 1), s));
+        im.setMatrixAt(i, m4.copy(base).multiply(pre).multiply(part.m));
+        if (pl.col !== undefined) im.setColorAt(i, col.setHex(pl.col));
+      });
+      im.castShadow = !!shadows; im.receiveShadow = true;
+      scene.add(im);
+    }
+  }
+  const kitsOff = () => location.protocol === 'file:' || /[?&]blocs=1/.test(location.search);
+
+  // ── Quartiers résidentiels : pavillons City Kit Suburban, jardins, clôtures, arbres ──
+  function buildResidential(blocks) {
+    // repli : petites maisons simples
+    const rnd = Render.seeded(1848);
+    const lots = [];
+    for (const b of blocks) {
+      const n = b.w > 52 && b.h > 52 ? 4 : 2;
+      for (let i = 0; i < n; i++) {
+        const dx = n === 4 ? (i % 2 ? 1 : -1) : (i ? 1 : -1), dz = n === 4 ? (i < 2 ? -1 : 1) : 0;
+        lots.push({ x: b.x + dx * b.w / 4, z: b.y + dz * b.h / 4, size: n === 4 ? b.w / 2 - 4 : Math.min(b.w / 2 - 4, b.h - 8), ry: Math.floor(rnd() * 4) * Math.PI / 2, v: rnd(), b });
+      }
+    }
+    const walls = new THREE.InstancedMesh(G.box, mat(0xe8dcc4), lots.length), roofs = new THREE.InstancedMesh(G.prism, mat(0xa8503a), lots.length);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3();
+    lots.forEach((l, i) => {
+      const w = l.size * 0.7;
+      walls.setMatrixAt(i, m4.compose(p.set(l.x, w * 0.3, l.z), q.setFromEuler(e.set(0, l.ry, 0)), sc.set(w, w * 0.6, w * 0.8)));
+      roofs.setMatrixAt(i, m4.compose(p.set(l.x, w * 0.6 + w * 0.15, l.z), q.setFromEuler(e.set(0, l.ry, Math.PI / 2)), sc.set(w * 0.3, w, w * 0.5)));
+    });
+    for (const im of [walls, roofs]) { im.castShadow = true; im.receiveShadow = true; scene.add(im); }
+    upgradeResidential(lots, [walls, roofs]);
+  }
+  async function upgradeResidential(lots, fallback) {
+    if (kitsOff()) return;
+    try {
+      const names = 'abcdefghijklmnopqrstu'.split('').map((l) => 'building-type-' + l);
+      const K = await loadKit('assets/kenney/suburban/', [...names, 'tree-large', 'tree-small', 'fence-1x3', 'planter']);
+      const byV = names.map(() => []), trees = { 'tree-large': [], 'tree-small': [] }, fences = [], planters = [];
+      const rnd = Render.seeded(1789);
+      for (const l of lots) {
+        byV[Math.floor(l.v * names.length)].push({ x: l.x, z: l.z, size: l.size * 0.92, ry: l.ry });
+        if (rnd() < 0.6) (rnd() < 0.5 ? trees['tree-large'] : trees['tree-small']).push({ x: l.x + (rnd() - 0.5) * l.size, z: l.z + (rnd() - 0.5) * l.size, size: 10 + rnd() * 6, ry: rnd() * 6 });
+        if (rnd() < 0.35) planters.push({ x: l.x + l.size * 0.45, z: l.z + l.size * 0.45, size: 5, ry: 0 });
+      }
+      // clôtures autour des pâtés
+      const seen = new Set();
+      for (const l of lots) {
+        const b = l.b; if (seen.has(b)) continue; seen.add(b);
+        if (rnd() < 0.5) fences.push({ x: b.x, z: b.y + (rnd() < 0.5 ? -1 : 1) * (b.h / 2 + 3), size: b.w * 0.95, h: 5, ry: 0 });
+      }
+      // variantes de toits : la texture d'origine (verte) décalée en tuiles rouges, ardoises bleues et gris
+      const variants = ['none', 'hue-rotate(-115deg) saturate(1.2)', 'hue-rotate(95deg)', 'saturate(0.15) brightness(0.9)'].map((filter) => {
+        const cache = new Map();
+        return (m) => {
+          if (filter === 'none' || !m.map || !m.map.image) return m;
+          if (!cache.has(m)) {
+            const img = m.map.image, cv = document.createElement('canvas');
+            cv.width = img.width; cv.height = img.height;
+            const x = cv.getContext('2d'); x.filter = filter; x.drawImage(img, 0, 0);
+            const t = new THREE.CanvasTexture(cv); t.flipY = m.map.flipY; t.magFilter = m.map.magFilter; t.minFilter = m.map.minFilter;
+            const nm = m.clone(); nm.map = t; cache.set(m, nm);
+          }
+          return cache.get(m);
+        };
+      });
+      names.forEach((n, i) => {
+        const groups = [[], [], [], []];
+        byV[i].forEach((pl, j) => groups[(j + i) % 4].push(pl));
+        groups.forEach((g, k) => instanceModel(K[n], g, CITY_SHADOWS, variants[k]));
+      });
+      for (const t in trees) instanceModel(K[t], trees[t], true);
+      instanceModel(K['fence-1x3'], fences, false);
+      instanceModel(K.planter, planters, false);
+      for (const f of fallback) scene.remove(f);
+    } catch (e) { console.warn('Kit Suburban indisponible, maisons simples conservées', e); }
+  }
+
+  // ── Campagne : cultures, arbres, clôtures, rochers (Nature Kit) ; haies, tonneaux, caisses (Platformer Kit) ──
+  async function upgradeCountryside(fields, fallback) {
+    if (kitsOff()) return;
+    try {
+      const NAT = ['crops_wheatStageB', 'crops_cornStageD', 'crop_pumpkin', 'crop_carrot', 'crops_leafsStageB', 'tree_oak', 'tree_default', 'tree_fat', 'tree_detailed', 'tree_pineRoundC', 'fence_simple', 'log_stack', 'rock_largeA', 'plant_bushLarge', 'flower_yellowA', 'flower_redA'];
+      const [N, P] = await Promise.all([loadKit('assets/kenney/nature/', NAT), loadKit('assets/kenney/platformer/', ['hedge', 'barrel', 'crate', 'fence-rope', 'flowers'])]);
+      const put = {}; const add = (k, pl) => (put[k] = put[k] || []).push(pl);
+      const rnd = Render.seeded(2027);
+      const CROP = ['crops_wheatStageB', null, 'crop_carrot', 'crops_cornStageD'];
+      const TREES = ['tree_oak', 'tree_default', 'tree_fat', 'tree_detailed', 'tree_pineRoundC'];
+      for (const b of fields) {
+        const crop = CROP[b.crop];
+        if (b.farm) {
+          // cour de ferme : tonneaux, caisses, tas de bois
+          add('P:barrel', { x: b.x + 22, z: b.y - 16, size: 6 }); add('P:crate', { x: b.x + 26, z: b.y - 8, size: 7, ry: rnd() });
+          add('N:log_stack', { x: b.x - 24, z: b.y + 16, size: 14, ry: rnd() * 3 });
+        } else if (crop) {
+          // rangs de cultures
+          for (let x = -b.w / 2 + 5; x < b.w / 2 - 2; x += 9) for (let z = -b.h / 2 + 5; z < b.h / 2 - 2; z += 9) {
+            const k = crop === 'crop_carrot' && rnd() < 0.15 ? 'crop_pumpkin' : crop;
+            add('N:' + k, { x: b.x + x, z: b.y + z, size: k === 'crops_cornStageD' ? 8 : 7, ry: rnd() * 6 });
+          }
+        } else {
+          // prairie : fleurs et buissons
+          for (let i = 0; i < 4; i++) add(rnd() < 0.5 ? 'N:flower_yellowA' : 'N:flower_redA', { x: b.x + (rnd() - 0.5) * b.w, z: b.y + (rnd() - 0.5) * b.h, size: 5 });
+          if (rnd() < 0.5) add('N:plant_bushLarge', { x: b.x + (rnd() - 0.5) * b.w * 0.6, z: b.y + (rnd() - 0.5) * b.h * 0.6, size: 12 });
+        }
+        // bordures : clôture, haie ou rangée d'arbres
+        const edge = rnd();
+        const side = rnd() < 0.5 ? -1 : 1;
+        if (edge < 0.35) add('N:fence_simple', { x: b.x, z: b.y + side * (b.h / 2 + 4), size: b.w, h: 6 });
+        else if (edge < 0.6) add('P:hedge', { x: b.x, z: b.y + side * (b.h / 2 + 4), size: b.w, h: 8 });
+        const n = 1 + Math.floor(rnd() * 3);
+        for (let k = 0; k < n; k++) add('N:' + TREES[Math.floor(rnd() * TREES.length)], { x: b.x - b.w / 2 + rnd() * b.w, z: b.y - side * (b.h / 2 + 5), size: 16 + rnd() * 10, ry: rnd() * 6 });
+        if (rnd() < 0.15) add('N:rock_largeA', { x: b.x + (rnd() - 0.5) * b.w, z: b.y + (rnd() - 0.5) * b.h, size: 9, ry: rnd() * 6 });
+      }
+      for (const k in put) {
+        const [kit, name] = k.split(':');
+        instanceModel((kit === 'N' ? N : P)[name], put[k], name.startsWith('tree') || name === 'log_stack');
+      }
+      for (const f of fallback) scene.remove(f);
+    } catch (e) { console.warn('Kits Nature / Platformer indisponibles, campagne simple conservée', e); }
   }
 
   function buildCity() {
     const blocks = Render.blockList();
     buildCountryside(blocks.filter((b) => b.rural));
-    const houses = blocks.filter((b) => !b.park && !b.rural);
+    buildResidential(blocks.filter((b) => b.resid && !b.park));
+    const houses = blocks.filter((b) => !b.park && !b.rural && !b.resid);
     const parks = blocks.filter((b) => b.park);
     const im = new THREE.InstancedMesh(G.box, new THREE.MeshStandardMaterial({ roughness: 0.85 }), houses.length);
     const roof = new THREE.InstancedMesh(G.box, new THREE.MeshStandardMaterial({ roughness: 0.6 }), houses.length);
@@ -408,8 +559,11 @@ const R3 = (() => {
       const cols = [0xe0384b, 0x2f6fe0, 0xf1f1f1, 0x4caf72, 0xffd34d];
       for (let i = 0; i < 18; i++) {
         const x = -50 + rnd() * 100, z = 18 + rnd() * 40;
-        crowd.add(mesh(G.cylLo, mat(cols[i % 5]), 5, 16, 5, x, 8, z));
-        crowd.add(mesh(G.sphLo, mat(0xf0c9a8), 5, 5, 5, x, 20, z));
+        const P = voxPerson(rnd, cols[i % 5]);
+        P.g.position.set(x, 0, z); P.g.rotation.y = Math.PI + (rnd() - 0.5) * 0.6; // tournés vers la scène
+        P.g.scale.setScalar(0.95 + rnd() * 0.2);
+        if (rnd() < 0.4) P.arm.rotation.x = -2.6; // bras levé, ça applaudit
+        crowd.add(P.g);
       }
       g.add(crowd);
       parts.crowd = crowd;
@@ -448,58 +602,196 @@ const R3 = (() => {
     const brows = new THREE.Color(l.hair || 0x333333).multiplyScalar(0.8).getHex();
     return { shirt: 0xf2efe6, brows, browTilt: 0, nose: 1, mouth: l.fem ? 'smile' : 'flat', height: 1, lips: l.fem ? 0xb84a55 : null, ...l };
   }
-  // ── Candidat en style voxel (essai : Marine Le Pen, d'après l'image de référence) ──
-  // tout en pavés : grosse tête cubique, cheveux en blocs, tailleur, col blanc, poignets blancs
-  function buildVoxel(c, L) {
-    const V = (color, sx, sy, sz, x, y, z) => { const m = mesh(G.box, mat(color, { roughness: 0.9 }), sx, sy, sz, x, y, z); m.castShadow = true; return m; };
-    const SKIN_V = 0xf0c09a, suit = L.suit === 0x1e2a5a ? 0x1d1d22 : L.suit, hair = L.hair, white = 0xf4f4f0;
-    const root = new THREE.Group();
-    const body = new THREE.Group(); root.add(body);
-    const inner = new THREE.Group(); inner.scale.setScalar(1.25 * (L.height || 1)); body.add(inner);
-    // jambes (pivot à la hanche)
-    const legs = [];
+  // ── Candidats en style voxel, d'après leurs photos (cheveux, pilosité, lunettes, tenue) ──
+  // hs : coupe (long, bob, short, swept, messy, curly, curlyLong, balding, bald, shaved, tied)
+  // out : tenue (suit, sweater, tracksuit, casual, trench, tweed, tux) ; tie / bow : cravate, nœud papillon
+  const VOX = {
+    melenchon: { hair: 0xd9d9d9, hs: 'swept', glasses: 0x2a2a2a, suit: 0x22252c, tie: 0xc8202f, brow: 0xbfbfbf },
+    glucksmann: { hair: 0x6b5a4e, hs: 'short', stubble: 0x5a4a40, suit: 0x2a3142 },
+    tondelier: { hair: 0x6a4026, hs: 'bob', suit: 0x3c9a4e, fem: 1 },
+    lepen: { hair: 0xf0dc6e, hs: 'long', suit: 0x1d1d22, fem: 1 },
+    philippe: { hair: 0x55524e, hs: 'balding', beard: 0x8a8682, streak: 0xeeeeee, glasses: 0x1a1a1a, suit: 0x3a3f4a, tie: 0x2a3a6a, h: 1.1 },
+    retailleau: { hair: 0xa8a8a8, hs: 'short', glasses: 0x111111, suit: 0x6a6d73, tie: 0x1f2f5a },
+    arthaud: { hair: 0x6e665c, hs: 'short', glasses: 0x2a2a2a, out: 'trench', suit: 0xc8b48a, fem: 1 },
+    batho: { hair: 0xc8c0a8, hs: 'curly', suit: 0x24304a, fem: 1 },
+    bouamrane: { hair: 0x2a2420, hs: 'balding', glasses: 0x333333, stubble: 0x8a8a8a, skin: 0xb07a55, suit: 0x27304a, tie: 0x22283a },
+    cazeneuve: { hair: 0x9a9a9a, hs: 'balding', glasses: 0x6a6a6a, suit: 0x23283a, tie: 0x2a3550 },
+    kazib: { hair: 0x1a1612, hs: 'shaved', beard: 0x1a1612, skin: 0xc08f6a, out: 'casual', suit: 0x1b1b1d, shirt: 0xf4f4f0 },
+    labib: { hair: 0x1e1612, hs: 'curlyLong', skin: 0xd2a07c, out: 'tracksuit', suit: 0x1b1b1d, fem: 1 },
+    roussel: { hair: 0x8a8a84, hs: 'messy', suit: 0x2b2f38 },
+    ruffin: { hair: 0x5a5550, hs: 'short', stubble: 0x5a5550, suit: 0x2b2f38 },
+    attal: { hair: 0x1f1813, hs: 'messy', suit: 0x1d2440, h: 0.97 },
+    becht: { hair: 0x2a221c, hs: 'short', suit: 0x22283a, tie: 0x2f55c4 },
+    bertrand: { hair: 0xb8b8b8, hs: 'short', suit: 0x23283a, tie: 0x2a3a6a },
+    dupontaignan: { hair: 0x7a7a78, hs: 'swept', suit: 0x22314f, tie: 0x2a3a6a },
+    lisnard: { hair: 0x2a221c, hs: 'short', suit: 0x2a2f3a, tie: 0x3f6fd8, shirt: 0xcfe0f5 },
+    philippot: { hair: 0x2a221c, hs: 'short', suit: 0x1d2440, tie: 0x1d2440, shirt: 0xcfe0f5 },
+    platret: { hair: 0x5a5550, hs: 'short', suit: 0x1d2440, tie: 0x1a1a2a },
+    villepin: { hair: 0xeaeaea, hs: 'swept', big: 1, suit: 0x1f2333, tie: 0x203050, h: 1.1 },
+    zemmour: { hair: 0x3a332c, hs: 'balding', suit: 0x22283a, tie: 0x1f3f8f, h: 0.92 },
+    asselineau: { hair: 0xdedede, hs: 'balding', suit: 0x22252c, tie: 0x1a1a1a },
+    branco: { hair: 0x2a1d17, hs: 'messy', out: 'sweater', suit: 0xc0282e },
+    cheve: { hair: 0x2a221c, hs: 'short', stubble: 0x3a2e28, eyepatch: 1, out: 'casual', suit: 0x3a3a3a, shirt: 0x2a3a5a },
+    dubuisson: { hair: 0x1a1612, hs: 'short', skin: 0xb98a63, suit: 0x1f3a7a, shirt: 0xcfe0f5 },
+    egger: { hair: 0x6b4a32, hs: 'tied', out: 'casual', suit: 0x2a2a2a, shirt: 0x3a3a3a, fem: 1 },
+    markovic: { hair: 0x1f1612, hs: 'tied', out: 'tweed', suit: 0x1b1b1d, shirt: 0xd0287a, necklace: 0xd8b04a, fem: 1 },
+    mikolajczak: { hair: 0x2a1d17, hs: 'curly', mustache: 0x2a1d17, out: 'casual', suit: 0x1b1b1d, shirt: 0x1b1b1d },
+    polony: { hair: 0xd2693a, hs: 'curly', out: 'tweed', suit: 0x2a2a2a, shirt: 0xf4f0e6, fem: 1 },
+    riner: { hair: 0x111111, hs: 'shaved', skin: 0x6a4530, out: 'tux', suit: 0x111111, bow: 0x111111, h: 1.25 },
+    verdier: { hair: 0x4a3426, hs: 'short', suit: 0x3b4252, tie: 0x5a2a2a },
+  };
+  const VSKIN = 0xf0c09a;
+  function vbox(color, sx, sy, sz, x, y, z, opts) {
+    const m = mesh(G.box, mat(color, { roughness: 0.9, ...(opts || {}) }), sx, sy, sz, x, y, z);
+    m.castShadow = true;
+    return m;
+  }
+  // coiffures, relatives à la tête (cube 30 × 28 × 26, visage en z = +13)
+  function voxHair(head, V) {
+    const H = V.hair, add = (sx, sy, sz, x, y, z) => head.add(vbox(H, sx, sy, sz, x, y, z));
+    const cap = (h) => { add(33, h, 30, 0, 26 + h / 2, -0.5); };
+    const back = (h) => add(33, h, 5, 0, 29 - h / 2, -13.5);
+    const sides = (h, w) => { for (const s of [-1, 1]) add(w || 3, h, 24, s * 16, 29 - h / 2, -1); };
+    switch (V.hs) {
+      case 'long':
+      case 'curlyLong': {
+        add(33, 8, 30, 0, 30, -0.5); add(30, 3, 27, 0, 35, -0.5); add(26, 2, 23, 0, 37.4, -0.5);
+        add(32, 5, 4, 0, 25, 12.6); add(6, 3, 4, -9, 21.6, 12.6); add(4, 3, 4, 7, 22, 12.6);
+        const w = V.hs === 'curlyLong' ? 8 : 5;
+        for (const s of [-1, 1]) { add(w, 34, 26, s * (15 + w / 2 - 1), 13, -1); add(4, 26, 4, s * 13.4, 15, 12.6); }
+        add(33 + (w - 5) * 2, 36, 6, 0, 13, -14);
+        if (V.hs === 'curlyLong') for (let i = 0; i < 10; i++) add(7, 7, 7, ((i % 5) - 2) * 8, 30 + (i % 2) * 6 - Math.floor(i / 5) * 18, -12 + (i % 3) * 2);
+        break;
+      }
+      case 'bob':
+        add(33, 8, 30, 0, 30, -0.5); add(30, 3, 27, 0, 35, -0.5);
+        add(32, 4, 4, 0, 26, 12.6);
+        for (const s of [-1, 1]) { add(5, 22, 26, s * 16.6, 19, -1); add(4, 16, 4, s * 13.4, 20, 12.6); }
+        add(33, 24, 5, 0, 19, -13.5);
+        break;
+      case 'short':
+        cap(7); back(16); sides(10); add(30, 3, 4, 0, 28, 12.6);
+        break;
+      case 'swept': {
+        const k = V.big ? 1.25 : 1;
+        cap(7); back(16); sides(10);
+        add(32 * k, 6 * k, 28, 0, 33 + 3 * k, -1); // volume sur le dessus
+        const q = vbox(H, 24 * k, 6 * k, 9, 3, 33 + 3 * k, 10); q.rotation.z = -0.12; head.add(q); // mèche relevée
+        if (V.big) for (const s of [-1, 1]) add(6, 12, 22, s * 18, 24, -2);
+        break;
+      }
+      case 'messy':
+        cap(7); back(16); sides(10); add(30, 3, 4, 0, 28, 12.6);
+        for (let i = 0; i < 9; i++) add(6, 5, 6, ((i % 3) - 1) * 9 + (i % 2) * 2, 33 + (i % 2) * 2, ((Math.floor(i / 3)) - 1) * 9);
+        break;
+      case 'curly':
+        cap(7); back(16); sides(10, 5);
+        for (let i = 0; i < 12; i++) add(7, 7, 7, ((i % 4) - 1.5) * 8, 32 + (i % 2) * 2.5, (Math.floor(i / 4) - 1) * 9 + 1);
+        for (const s of [-1, 1]) add(4, 8, 4, s * 12, 26, 12.8);
+        break;
+      case 'balding':
+        back(14); sides(11);
+        break;
+      case 'shaved':
+        head.add(vbox(H, 31, 1.6, 27, 0, 29.6, 0, { transparent: true, opacity: 0.55 }));
+        break;
+      case 'tied':
+        cap(6); back(10); sides(9);
+        add(30, 3, 3, 0, 28.5, 12.8);
+        add(10, 10, 8, 0, 25, -18); // chignon
+        break;
+      default: break; // bald
+    }
+  }
+  function voxFace(head, V) {
+    const skin = V.skin || VSKIN;
+    head.add(vbox(skin, 30, 28, 26, 0, 15, 0));
+    for (const s of [-1, 1]) {
+      head.add(vbox(skin, 3.5, 6, 5, s * 16.6, 14, 1)); // oreilles
+      if (V.eyepatch && s < 0) {
+        head.add(vbox(0x111111, 6.5, 6.5, 1, s * 6.5, 16, 13.4)); // cache-œil
+      } else {
+        head.add(vbox(0x2a1a1e, 3.6, 5, 1, s * 6.5, 16, 13.2));
+        head.add(vbox(0xffffff, 1.4, 1.4, 1, s * 6.5 + 0.9, 17.6, 13.6));
+      }
+      head.add(vbox(V.brow || new THREE.Color(V.hair).multiplyScalar(0.75).getHex(), 6, 1.6, 1, s * 6.5, 21.5, 13.2));
+      if (V.fem) {
+        head.add(vbox(0xf2a0aa, 5, 2.4, 1, s * 9.5, 11.2, 13.1));
+        head.add(vbox(0xffffff, 1.8, 2, 1.8, s * 17.2, 9.6, 2.5));
+      }
+    }
+    if (V.eyepatch) { const st = vbox(0x111111, 34, 1.4, 1, 0, 20, 13.6); st.rotation.z = 0.32; head.add(st); }
+    head.add(vbox(V.fem ? 0xb84a55 : 0x9a5a50, V.fem ? 4.5 : 4, 1.4, 1, 0, 8.6, 13.1)); // bouche
+    const beard = V.beard || V.stubble;
+    if (beard) {
+      const o = V.stubble && !V.beard ? { transparent: true, opacity: 0.45 } : null;
+      head.add(vbox(beard, 30.4, 9, 1.4, 0, 5.5, 13.4, o));
+      for (const s of [-1, 1]) head.add(vbox(beard, 1.4, 13, 22, s * 15.4, 8, 1, o));
+      head.add(vbox(beard, 12, 2.4, 1.6, 0, 10.4, 13.6, o));
+      head.add(vbox(0x7a3a36, 4, 1.4, 1, 0, 8.6, 14.3)); // bouche visible dans la barbe
+      if (V.streak) head.add(vbox(V.streak, 4, 9, 1.6, 0, 4.5, 13.8));
+    }
+    if (V.mustache) head.add(vbox(V.mustache, 10, 1.8, 1.4, 0, 10.6, 13.6, { transparent: true, opacity: 0.6 }));
+    if (V.glasses) {
+      const gc = V.glasses, f = (sx, sy, sz, x, y, z) => head.add(vbox(gc, sx, sy, sz, x, y, z));
+      for (const s of [-1, 1]) {
+        if (V.eyepatch && s < 0) continue;
+        f(8.5, 1.2, 1, s * 6.5, 20, 13.9); f(8.5, 1.2, 1, s * 6.5, 12.4, 13.9);
+        f(1.2, 8.8, 1, s * 6.5 - 4.2, 16.2, 13.9); f(1.2, 8.8, 1, s * 6.5 + 4.2, 16.2, 13.9);
+        f(1, 1.2, 13, s * 15.3, 18, 7);
+      }
+      f(4.4, 1.2, 1, 0, 17.5, 13.9);
+    }
+  }
+  function voxBody(inner, V) {
+    const out = V.out || 'suit', jacket = V.suit || 0x2a2f3a, shirt = V.shirt || 0xf4f4f0;
+    const trousers = out === 'trench' || out === 'tweed' ? 0x26262c : out === 'sweater' || out === 'casual' ? 0x2c3440 : jacket;
+    const legs = [], arms = [];
     for (const s of [-1, 1]) {
       const hip = new THREE.Group(); hip.position.set(s * 5.5, 22, 0);
-      hip.add(V(suit, 10, 22, 11, 0, -11, 0));
-      hip.add(V(0x141418, 10.4, 4, 13, 0, -20, 1)); // chaussures
+      hip.add(vbox(trousers, 10, 22, 11, 0, -11, 0));
+      hip.add(vbox(out === 'tracksuit' ? 0xf4f4f0 : 0x141418, 10.4, 4, 13, 0, -20, 1));
       inner.add(hip); legs.push(hip);
     }
-    // buste : veste, chemise blanche en V
-    inner.add(V(suit, 24, 24, 13, 0, 34, 0));
-    inner.add(V(white, 8, 9, 1, 0, 41.5, 6.8));
-    for (const s of [-1, 1]) { const lap = V(suit, 5, 11, 1.2, s * 4.2, 40, 7.1); lap.rotation.z = s * 0.45; inner.add(lap); }
-    // bras (pivot à l'épaule) : manche, poignet blanc, main
-    const arms = [];
+    if (out === 'casual') {
+      inner.add(vbox(shirt, 22, 24, 12.6, 0, 34, 0));
+      for (const s of [-1, 1]) inner.add(vbox(jacket, 8, 24, 13.2, s * 8.5, 34, 0));
+    } else {
+      inner.add(vbox(jacket, 24, 24, 13, 0, 34, 0));
+    }
+    if (out === 'suit' || out === 'tux' || out === 'trench' || out === 'tweed') {
+      const vw = out === 'tweed' ? 11 : 8;
+      inner.add(vbox(shirt, vw, 9, 1, 0, 41.5, 6.8));
+      for (const s of [-1, 1]) { const lap = vbox(jacket, 5, 11, 1.2, s * (vw / 2 + 0.2), 40, 7.1); lap.rotation.z = s * 0.45; inner.add(lap); }
+      if (V.tie) { inner.add(vbox(V.tie, 2.6, 12, 1, 0, 38.5, 7.4)); inner.add(vbox(V.tie, 3.6, 2.4, 1.2, 0, 44.4, 7.5)); }
+      if (V.bow) inner.add(vbox(V.bow, 7, 3, 1.4, 0, 44.5, 7.6));
+      if (out === 'trench') inner.add(vbox(new THREE.Color(jacket).multiplyScalar(0.75).getHex(), 24.4, 2.2, 13.4, 0, 30, 0));
+      if (out === 'tweed') for (let i = 0; i < 6; i++) inner.add(vbox(0xf4f0e6, 1, 1, 1, -9 + (i % 2) * 18, 26 + i * 3, 6.9));
+    }
+    if (out === 'sweater') inner.add(vbox(shirt, 10, 2, 1, 0, 45, 6.8));
+    if (out === 'tracksuit') {
+      inner.add(vbox(0xf4f4f0, 1, 22, 1, 0, 34, 6.8));
+      inner.add(vbox(jacket, 12, 3, 13.4, 0, 45.5, 0));
+    }
+    if (V.necklace) for (let i = 0; i < 7; i++) inner.add(vbox(V.necklace, 1.6, 1.6, 1.6, (i - 3) * 1.7, 43 - Math.abs(i - 3) * 0.9, 7.2));
     for (const s of [-1, 1]) {
       const sh = new THREE.Group(); sh.position.set(s * 16, 44, 0);
-      sh.add(V(suit, 8, 18, 9, 0, -8, 0));
-      sh.add(V(white, 8.6, 3, 9.6, 0, -17.5, 0));
-      sh.add(V(SKIN_V, 8, 7, 8, 0, -22, 0));
+      sh.add(vbox(jacket, 8, 18, 9, 0, -8, 0));
+      if (out === 'tracksuit') sh.add(vbox(0xf4f4f0, 8.4, 16, 1, 0, -8, 4.3));
+      if (out === 'suit' || out === 'tux' || out === 'tweed') sh.add(vbox(0xf4f4f0, 8.6, 3, 9.6, 0, -17.5, 0));
+      sh.add(vbox(V.skin || VSKIN, 8, 7, 8, 0, -22, 0));
       inner.add(sh); arms.push(sh);
     }
-    // tête : gros cube, visage plat
+    return { legs, arms };
+  }
+  function buildVoxel(c, V) {
+    const root = new THREE.Group();
+    const body = new THREE.Group(); root.add(body);
+    const inner = new THREE.Group(); inner.scale.setScalar(1.25 * (V.h || 1)); body.add(inner);
+    const { legs, arms } = voxBody(inner, V);
     const head = new THREE.Group(); head.position.set(0, 46, 0); inner.add(head);
-    head.add(V(SKIN_V, 30, 28, 26, 0, 15, 0));
-    for (const s of [-1, 1]) {
-      head.add(V(0x2a1a1e, 3.6, 5, 1, s * 6.5, 16, 13.2)); // yeux
-      head.add(V(0xffffff, 1.4, 1.4, 1, s * 6.5 + 0.9, 17.6, 13.6)); // reflet
-      head.add(V(0xf2a0aa, 5, 2.4, 1, s * 9.5, 11.2, 13.1)); // joues roses
-      head.add(V(SKIN_V, 3.5, 6, 5, s * 16.6, 14, 1)); // oreilles
-      head.add(V(0xffffff, 1.8, 2, 1.8, s * 17.2, 9.6, 2.5)); // boucles d'oreilles
-    }
-    head.add(V(0x9a5a50, 3.5, 1.3, 1, 0, 8.6, 13.1)); // bouche
-    // cheveux : calotte à gradins, mèches sur le front, cheveux longs sur les côtés et dans le dos
-    head.add(V(hair, 33, 8, 30, 0, 30, -0.5));
-    head.add(V(hair, 30, 3, 27, 0, 35, -0.5));
-    head.add(V(hair, 26, 2, 23, 0, 37.4, -0.5));
-    head.add(V(hair, 32, 5, 4, 0, 25, 12.6)); // frange
-    head.add(V(hair, 6, 3, 4, -9, 21.6, 12.6));
-    head.add(V(hair, 4, 3, 4, 7, 22, 12.6));
-    for (const s of [-1, 1]) {
-      head.add(V(hair, 5, 34, 26, s * 16.6, 13, -1)); // côtés, longs jusqu'aux épaules
-      head.add(V(hair, 4, 26, 4, s * 13.4, 15, 12.6)); // mèches qui encadrent le visage
-    }
-    head.add(V(hair, 33, 36, 5, 0, 13, -13.5)); // dos
+    voxFace(head, V);
+    voxHair(head, V);
     const ring = new THREE.Mesh(new THREE.RingGeometry(26, 33, 40), new THREE.MeshBasicMaterial({ color: hex(TEAMS[c.team].color), transparent: true, opacity: 0.9 }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 1.5; root.add(ring);
     if (c.isPlayer) {
@@ -512,9 +804,51 @@ const R3 = (() => {
     return root;
   }
 
+  // ── Petits personnages voxel : militants et public des meetings, hommes et femmes ──
+  const HAIRS = [0x1f1612, 0x3a2a20, 0x6b4a32, 0xc9a25a, 0x8a8a84, 0x2a221c, 0x9a4a2a];
+  const SKINS = [0xf0c09a, 0xe8b48c, 0xd2a07c, 0xb07a55, 0x8a5a3c, 0xf4cfb0];
+  function voxPerson(rnd, shirtCol, opts) {
+    const o = opts || {};
+    const fem = rnd() < 0.5, hair = HAIRS[Math.floor(rnd() * HAIRS.length)], skin = SKINS[Math.floor(rnd() * SKINS.length)];
+    const shirt = typeof shirtCol === 'number' ? mat(shirtCol, { roughness: 0.9 }) : shirtCol;
+    const g = new THREE.Group();
+    const body = new THREE.Group(); g.add(body);
+    const legs = [];
+    const pants = fem && rnd() < 0.4 ? 0x2a3550 : 0x2e3440;
+    for (const s of [-1, 1]) {
+      const hip = new THREE.Group(); hip.position.set(s * 2.6, 12, 0);
+      hip.add(vbox(pants, 4.6, 12, 5, 0, -6, 0)); hip.add(vbox(0x1a1a1a, 4.8, 2, 6, 0, -11, 0.6));
+      body.add(hip); legs.push(hip);
+    }
+    const torso = new THREE.Mesh(G.box, shirt); torso.scale.set(11, 12, 6.5); torso.position.set(0, 18, 0); torso.castShadow = true; body.add(torso);
+    const head = new THREE.Group(); head.position.set(0, 24, 0); body.add(head);
+    head.add(vbox(skin, 11, 10, 9.5, 0, 5, 0));
+    for (const s of [-1, 1]) head.add(vbox(0x2a1a1e, 1.6, 2.2, 0.6, s * 2.4, 5.2, 4.9));
+    if (fem) head.add(vbox(0xf2a0aa, 2, 1, 0.6, -3.6, 3.2, 4.85), vbox(0xf2a0aa, 2, 1, 0.6, 3.6, 3.2, 4.85));
+    if (o.cap) {
+      head.add(vbox(o.cap, 12, 3, 10.5, 0, 10.6, 0));
+      head.add(vbox(o.cap, 8, 1, 5, 0, 9.4, 6.5)); // visière
+    } else head.add(vbox(hair, 12, 3, 10.5, 0, 10.6, -0.2));
+    if (fem) {
+      head.add(vbox(hair, 12, 10, 3, 0, 5, -5.2)); // cheveux longs dans le dos
+      for (const s of [-1, 1]) head.add(vbox(hair, 2, 9, 9, s * 5.9, 5.5, -0.4));
+      if (rnd() < 0.5) head.add(vbox(hair, 4, 7, 3, 0, 4, -7.5)); // queue de cheval
+    } else {
+      head.add(vbox(hair, 12, 5, 2.5, 0, 7.5, -4.9));
+      if (rnd() < 0.25) head.add(vbox(hair, 10, 3, 1, 0, 1.8, 4.9, { transparent: true, opacity: 0.6 })); // barbe
+    }
+    const arm = new THREE.Group(); arm.position.set(7, 22, 0); body.add(arm);
+    const sl = new THREE.Mesh(G.box, shirt); sl.scale.set(3.4, 10, 3.6); sl.position.set(0, -5, 0); arm.add(sl);
+    arm.add(vbox(skin, 3.4, 3, 3.6, 0, -11, 0));
+    const arm2 = new THREE.Group(); arm2.position.set(-7, 22, 0); body.add(arm2);
+    const sl2 = new THREE.Mesh(G.box, shirt); sl2.scale.set(3.4, 10, 3.6); sl2.position.set(0, -5, 0); arm2.add(sl2);
+    arm2.add(vbox(skin, 3.4, 3, 3.6, 0, -11, 0));
+    return { g, body, legs, arm, arm2, fem };
+  }
+
   function buildCandidate(c) {
+    if (VOX[c.def.id]) return buildVoxel(c, VOX[c.def.id]);
     const L = LOOK[c.def.id] || lookFrom(c.def.look || {});
-    if (L.voxel) return buildVoxel(c, L);
     const root = new THREE.Group();
     const body = new THREE.Group();
     root.add(body);
@@ -617,20 +951,16 @@ const R3 = (() => {
     return MIL[team];
   }
   const greyMat = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, transparent: true, opacity: 0.45 });
+  let milSeed = 1;
   function buildMilitant(m) {
     const M = milMats(m.team);
-    const g = new THREE.Group();
-    const body = new THREE.Group(); g.add(body);
-    const legs = [];
-    for (const s of [-1, 1]) { const hip = new THREE.Group(); hip.position.set(s * 4, 14, 0); hip.add(mesh(G.cylLo, mat(0x2e3440), 3, 14, 3, 0, -7, 0)); body.add(hip); legs.push(hip); }
-    body.add(mesh(G.cylLo, M.shirt, 8, 18, 6.5, 0, 23, 0));
-    body.add(mesh(G.sphLo, mat(SKIN), 7.5, 7.5, 7.5, 0, 38, 0));
-    const capm = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), M.cap);
-    capm.scale.set(8, 5, 8); capm.position.y = 40; body.add(capm);
-    const arm = new THREE.Group(); arm.position.set(8, 30, 0); body.add(arm);
-    arm.add(mesh(G.cylLo, M.shirt, 2.4, 14, 2.4, 0, -7, 0));
-    if (m.ranged) { const c = mesh(G.cone, mat(0xf2f2f2), 5, 12, 5, 0, -14, 6); c.rotation.x = -Math.PI / 2; arm.add(c); }
-    else arm.add(mesh(G.box, mat(0xffffff), 8, 11, 1, 0, -15, 3));
+    const rnd = Render.seeded(milSeed++ * 97 + 13);
+    const P = voxPerson(rnd, M.shirt, { cap: TEAMS[m.team].dark ? hex(TEAMS[m.team].dark) : 0x222222 });
+    const { g, body, legs, arm } = P;
+    g.scale.setScalar(1.3);
+    // militant à distance : mégaphone ; sinon bulletin de vote
+    if (m.ranged) { const c = mesh(G.cone, mat(0xf2f2f2), 3.5, 8, 3.5, 0, -12, 4); c.rotation.x = -Math.PI / 2; arm.add(c); }
+    else arm.add(vbox(0xffffff, 6, 8, 0.8, 0, -13, 2.5));
     g.userData = { body, legs, arm, px: m.x, py: m.y, phase: Math.random() * 6, conv: false };
     return g;
   }

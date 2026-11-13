@@ -38,7 +38,15 @@ const Render = (() => {
   }
 
   let blocksCache = null;
-  const RURAL = 960;
+  // la carte est découpée en tranches : ville (nord et sud), quartiers résidentiels (haut des camps),
+  // campagne (bas des camps) — symétrique entre gauche et droite
+  const ZONE_BY_SECTOR = { 'Palais-Bourbon': 'ville', Luxembourg: 'ville', Belleville: 'resid', Passy: 'resid', 'Ménilmontant': 'campagne', Auteuil: 'campagne' };
+  const ZONE_TINT = { ville: null, resid: 'rgba(120,150,90,0.30)', campagne: 'rgba(96,130,64,0.55)' };
+  function zoneAt(x, y) {
+    const a = ((Math.atan2(-y, x) * 180) / Math.PI + 360) % 360;
+    const sc = MAP.sectors.find((q) => a >= q.a0 && a < q.a1) || MAP.sectors[0];
+    return ZONE_BY_SECTOR[sc.name] || 'ville';
+  }
   const CROPS = ['#cdb45a', '#7fa64a', '#8a6a48', '#a3b85a']; // blé, prairie, labours, colza
   function blockList() {
     if (blocksCache) return blocksCache;
@@ -54,9 +62,10 @@ const Render = (() => {
         if (Math.hypot(cx, cy) < 280) continue;
         const w = 40 + rnd() * 24, h = 40 + rnd() * 24;
         const b = { x: cx, y: cy, w, h, park: rnd() < 0.12, hgt: 30 + rnd() * 80 };
-        // la campagne entoure la ville : au-delà de RURAL, les pâtés deviennent des champs et des fermes
         const hsh = Math.abs(Math.sin(cx * 12.9898 + cy * 78.233) * 43758.5453) % 1;
-        if (Math.hypot(cx, cy) > RURAL) { b.rural = true; b.park = false; b.crop = Math.floor(hsh * 4); b.farm = hsh > 0.72; }
+        b.zone = zoneAt(cx, cy);
+        if (b.zone === 'campagne') { b.rural = true; b.park = false; b.crop = Math.floor(hsh * 4); b.farm = hsh > 0.72; }
+        else if (b.zone === 'resid') { b.resid = true; b.park = hsh < 0.08; }
         out.push(b);
       }
     }
@@ -85,9 +94,13 @@ const Render = (() => {
       g.arc(0, 0, MAP.R, -s.a1 * MAP.D2R, -s.a0 * MAP.D2R);
       g.closePath(); g.fill();
     }
-    // campagne : couronne verte autour de la ville
-    g.fillStyle = 'rgba(96,130,64,0.55)';
-    g.beginPath(); g.arc(0, 0, MAP.R, 0, Math.PI * 2); g.arc(0, 0, RURAL - 40, 0, Math.PI * 2, true); g.fill();
+    // tranches résidentielles (pelouses) et de campagne (prés)
+    for (const sc of MAP.sectors) {
+      const tint = ZONE_TINT[ZONE_BY_SECTOR[sc.name]];
+      if (!tint) continue;
+      g.fillStyle = tint; g.beginPath(); g.moveTo(0, 0);
+      g.arc(0, 0, MAP.R, -sc.a1 * MAP.D2R, -sc.a0 * MAP.D2R); g.closePath(); g.fill();
+    }
     // immeubles (pâtés de maisons) — en 3D ils sont extrudés, ici seulement leur emprise
     for (const b of blockList()) {
       if (b.rural) {
@@ -97,6 +110,13 @@ const Render = (() => {
         g.strokeStyle = 'rgba(0,0,0,0.12)'; g.lineWidth = 2;
         for (let k = -b.w / 2; k < b.w / 2 + 6; k += 9) { g.beginPath(); g.moveTo(b.x + k, b.y - b.h / 2 - 6); g.lineTo(b.x + k, b.y + b.h / 2 + 6); g.stroke(); }
         if (blocks && b.farm) { g.fillStyle = '#b5523a'; g.fillRect(b.x - 10, b.y - 8, 20, 16); }
+        continue;
+      }
+      if (b.resid && !b.park) {
+        // pavillons avec jardin
+        g.fillStyle = 'rgba(140,175,100,0.6)';
+        roundRect(g, b.x - b.w / 2 - 4, b.y - b.h / 2 - 4, b.w + 8, b.h + 8, 6); g.fill();
+        if (blocks) { g.fillStyle = '#c9b8a0'; for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) g.fillRect(b.x + dx * b.w / 4 - 7, b.y + dy * b.h / 4 - 7, 14, 14); }
         continue;
       }
       if (blocks) {
@@ -461,5 +481,5 @@ const Render = (() => {
     g.strokeRect(cam.x - W / 2 / cam.z, cam.y - H / 2 / cam.z, W / cam.z, H / cam.z);
   }
 
-  return { drawWorld, drawMinimap, buildStatic, makeGround, blockList, gaugeColor, seeded };
+  return { drawWorld, drawMinimap, buildStatic, makeGround, blockList, gaugeColor, seeded, zoneAt };
 })();
