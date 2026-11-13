@@ -2,7 +2,9 @@
 
 MOBA satirique en 3 contre 3 : gauche contre droite, avec des candidats à l’élection présidentielle 2027. Le but n’est pas de détruire le QG adverse mais de **conquérir l’Élysée** au centre de la carte. Le candidat du camp gagnant qui est le mieux placé dans les sondages est élu président de la République.
 
-Ce jeu web tient en un seul dossier, en JavaScript et canvas, sans build ni dépendance.
+Ce jeu web en 3D (Three.js r128, chargé depuis cdnjs) tient en un seul dossier, sans build. Les candidats y sont des caricatures à grosse tête, construites en volumes simples, sans aucune photo.
+
+![Candidats](docs/candidats.jpg)
 
 ## Lancer le jeu
 
