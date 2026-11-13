@@ -34,13 +34,13 @@ function makeEngine() {
 const REF = makeEngine(); // pour les données des candidats (lecture seule)
 
 // ── Fichiers statiques ──
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.txt': 'text/plain; charset=utf-8' };
 const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent((req.url || '/').split('?')[0]); } catch (e) { p = ''; }
   if (p === '/') p = '/index.html';
   if (p === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok'); }
-  const ok = /^\/(index\.html|map\.html|src\/[\w-]+\.js|docs\/[\w-]+\.(jpg|png))$/.test(p);
+  const ok = /^\/(index\.html|map\.html|src\/[\w-]+\.js|docs\/[\w-]+\.(jpg|png)|assets\/[\w\/-]+\.(glb|gltf|bin|png|jpg|txt))$/.test(p) && !p.includes('..');
   const file = path.join(ROOT, p);
   if (!ok || !file.startsWith(ROOT + path.sep)) { res.writeHead(404); return res.end('Introuvable'); }
   fs.readFile(file, (err, data) => {
