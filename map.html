@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carte de campagne</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0e13; color: #e9edf2; font: 14px/1.4 system-ui, -apple-system, sans-serif; overflow: hidden; }
+  canvas { position: fixed; inset: 0; }
+  .legend { position: fixed; top: 12px; left: 12px; width: 300px; background: rgba(16,20,27,.9); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 12px 14px; }
+  .legend h1 { margin: 0 0 8px; font-size: 18px; }
+  .legend div { display: flex; gap: 8px; align-items: center; margin: 5px 0; font-size: 13px; }
+  .sw { width: 16px; height: 16px; border-radius: 4px; flex: 0 0 auto; box-sizing: border-box; }
+  .legend p { color: #9aa4b1; font-size: 12px; margin: 8px 0 0; }
+  a { color: #ffd34d; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="legend">
+  <h1>Carte de campagne</h1>
+  <div><span class="sw" style="background:#e0384b"></span>QG gauche, quartiers de Belleville et Ménilmontant</div>
+  <div><span class="sw" style="background:#2f6fe0"></span>QG droite, quartiers de Passy et Auteuil</div>
+  <div><span class="sw" style="background:#4caf72"></span>Quartiers neutres (Palais-Bourbon, Luxembourg)</div>
+  <div><span class="sw" style="background:#e9e4d6"></span>Élysée (centre) · Assemblée (nord) · Sénat (sud)</div>
+  <div><span class="sw" style="background:#1a1f26;border:3px solid #e0384b"></span>Bureau de vote : 3 vers l’Élysée, 2 vers l’AN / le Sénat, par camp</div>
+  <div><span class="sw" style="background:#d8d1bf;border:3px solid #8fd18a"></span>Mairie : parrainages</div>
+  <div><span class="sw" style="background:#5a3d7a;border:3px solid #ffd34d"></span>Meeting : dons</div>
+  <p>Les militants suivent 3 voies : l’avenue de la Liberté (Élysée) et les deux moitiés du boulevard circulaire (AN au nord, Sénat au sud). Les avenues de l’Égalité et de la Fraternité traversent la jungle.</p>
+  <p><a href="index.html">▶ Jouer</a></p>
+</div>
+<script src="src/data.js"></script>
+<script src="src/map.js"></script>
+<script src="src/render.js"></script>
+<script>
+  const cv = document.getElementById('c'), g = cv.getContext('2d');
+  function draw() {
+    const dpr = window.devicePixelRatio || 1, W = innerWidth, H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const z = (Math.min(W, H) / (MAP.R * 2 + 120)) * dpr;
+    Render.drawWorld(g, null, { x: W > 900 ? -160 : 0, y: 0, z }, W * dpr, H * dpr, { labels: true });
+  }
+  addEventListener('resize', draw);
+  draw();
+</script>
+</body>
+</html>

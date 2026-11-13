@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campagne 2027</title>
+<style>
+  :root {
+    --bg: #0b0e13; --panel: rgba(16, 20, 27, 0.88); --line: rgba(255,255,255,0.12); --text: #e9edf2; --mute: #9aa4b1;
+    --g: #e0384b; --gl: #ff8a96; --d: #2f6fe0; --dl: #8fb4ff; --gold: #ffd34d; --ok: #5fd17a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 14px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  canvas#game { position: fixed; inset: 0; display: block; cursor: crosshair; }
+  .hidden { display: none !important; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  /* ─ Menu ─ */
+  #menu { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, rgba(11,14,19,0.55), rgba(11,14,19,0.92)); overflow: auto; padding: 24px 16px; }
+  .menu-box { width: min(980px, 100%); }
+  h1 { margin: 0; font-size: clamp(34px, 6vw, 60px); letter-spacing: -0.02em; text-align: center; }
+  h1 .r { color: var(--g); } h1 .b { color: var(--d); }
+  .tag { text-align: center; color: var(--mute); margin: 6px 0 22px; font-size: 16px; }
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 22px; }
+  .rule { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .rule b { display: block; margin-bottom: 4px; }
+  .rule span { color: var(--mute); font-size: 13px; }
+  #pick-teams { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .team-btn { min-width: 200px; padding: 14px 20px; border-radius: 12px; border: 2px solid var(--line); background: var(--panel); font-weight: 800; font-size: 18px; }
+  .team-btn.gauche { border-color: var(--g); } .team-btn.droite { border-color: var(--d); }
+  .team-btn.gauche.on { background: var(--g); } .team-btn.droite.on { background: var(--d); }
+  #pick-cands { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+  .hint { text-align: center; color: var(--mute); grid-column: 1 / -1; }
+  .cand-card { display: flex; gap: 12px; text-align: left; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 14px; transition: transform .12s, border-color .12s; }
+  .cand-card:hover { transform: translateY(-2px); }
+  .cand-card.gauche:hover { border-color: var(--g); } .cand-card.droite:hover { border-color: var(--d); }
+  .avatar { flex: 0 0 auto; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 17px; border: 4px solid; }
+  .avatar.gauche { background: #5c1520; border-color: var(--g); } .avatar.droite { background: #132a5e; border-color: var(--d); }
+  .cc-name { font-weight: 800; font-size: 17px; }
+  .cc-meta { color: var(--mute); font-size: 12px; margin: 2px 0 6px; }
+  .cand-card ul { margin: 0; padding: 0; list-style: none; font-size: 12.5px; color: #c9d1db; }
+  .cand-card li b { display: inline-block; width: 18px; color: var(--gold); }
+  .keys { text-align: center; color: var(--mute); font-size: 13px; margin-top: 18px; }
+  kbd { background: #222a35; border: 1px solid #3a4452; border-bottom-width: 3px; border-radius: 5px; padding: 1px 6px; font: 600 12px system-ui; color: var(--text); }
+
+  /* ─ HUD ─ */
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #hud > * { pointer-events: auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(6px); }
+  #top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: stretch; padding: 8px 10px; }
+  .obj { width: 190px; }
+  .obj .on { font-weight: 800; font-size: 13px; display: flex; justify-content: space-between; }
+  .obj .bar { position: relative; height: 10px; background: #0d1116; border-radius: 6px; margin: 4px 0 2px; overflow: hidden; }
+  .obj .fill-g { position: absolute; right: 50%; top: 0; bottom: 0; background: var(--g); }
+  .obj .fill-d { position: absolute; left: 50%; top: 0; bottom: 0; background: var(--d); }
+  .obj .bar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: #fff; }
+  .obj .st { font-size: 11.5px; color: var(--mute); }
+  .obj.mid { width: 240px; }
+  #timer { display: grid; place-items: center; font: 800 16px ui-monospace, monospace; padding: 0 6px; }
+  #poll { position: fixed; top: 10px; right: 10px; width: 270px; padding: 10px 12px; }
+  #poll h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
+  .poll-row { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; margin-bottom: 7px; }
+  .poll-row.me .pn { color: var(--gold); }
+  .poll-row.dead { opacity: .5; }
+  .pn { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv { font: 800 13px ui-monospace, monospace; }
+  .pb { grid-column: 1 / -1; height: 6px; background: #0d1116; border-radius: 4px; overflow: hidden; }
+  .pb div { height: 100%; }
+  .pk { grid-column: 1 / -1; font-size: 11px; color: var(--mute); }
+  #parr { font-size: 11.5px; color: #9be28f; margin-top: 4px; }
+  #log { position: fixed; top: 10px; left: 10px; width: 330px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
+  .ll { background: var(--panel); border-left: 4px solid; border-radius: 6px; padding: 4px 8px; font-size: 12.5px; }
+  .ll span { color: var(--mute); font: 11px ui-monospace, monospace; margin-right: 4px; }
+  #minimap { position: fixed; left: 10px; bottom: 10px; border-radius: 50%; background: rgba(16,20,27,.85); border: 2px solid var(--line); cursor: pointer; }
+  #bottom { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 10px 12px; }
+  #me { display: flex; gap: 10px; align-items: center; min-width: 260px; }
+  #me-name { font-weight: 800; }
+  #me-poll { font-size: 12px; color: var(--gold); }
+  .hpbar { width: 230px; height: 12px; background: #0d1116; border-radius: 6px; overflow: hidden; margin-top: 4px; }
+  #me-hp { height: 100%; background: var(--ok); transition: width .15s; }
+  #me-hpt { font-size: 11.5px; color: var(--mute); }
+  #me-status { font-size: 12px; color: #9be28f; min-height: 15px; }
+  #abilities { display: flex; gap: 6px; }
+  .ab { position: relative; width: 70px; height: 70px; border-radius: 10px; background: #1c232d; border: 2px solid #3a4452; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px; }
+  .ab .key { position: absolute; top: 3px; left: 6px; font-weight: 900; color: var(--gold); }
+  .ab .abn { font-size: 10px; line-height: 1.1; font-weight: 700; position: relative; z-index: 2; }
+  .ab .cdo { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.7); z-index: 1; }
+  .ab .cdv { position: absolute; inset: 0; display: grid; place-items: center; font: 900 22px system-ui; z-index: 3; }
+  .ab.aim { border-color: var(--gold); }
+  #right-bottom { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  #me-dons { font: 800 18px ui-monospace, monospace; color: var(--gold); }
+  #me-items { display: grid; grid-template-columns: repeat(3, 30px); gap: 4px; }
+  .slot { width: 30px; height: 30px; border-radius: 6px; background: #1c232d; border: 1px solid #3a4452; display: grid; place-items: center; font-size: 17px; }
+  #btn-shop { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--gold); background: rgba(255,211,77,.12); font-weight: 800; }
+  #help { position: fixed; right: 10px; bottom: 10px; font-size: 11.5px; color: var(--mute); padding: 8px 10px; max-width: 240px; }
+
+  #shop { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.45); }
+  .shop-box { width: min(620px, calc(100% - 32px)); max-height: 80vh; overflow: auto; padding: 16px; }
+  .shop-box h2 { margin: 0 0 2px; }
+  #shop-where { color: var(--mute); margin-bottom: 10px; font-size: 13px; }
+  #shop-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 8px; }
+  .shop-item { display: grid; grid-template-columns: 36px 1fr auto; grid-template-rows: auto auto; gap: 0 8px; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: #161c24; }
+  .shop-item.team { border-color: rgba(155,226,143,.4); }
+  .shop-item:disabled { opacity: .45; cursor: not-allowed; }
+  .shop-item .ic { grid-row: 1 / 3; font-size: 24px; display: grid; place-items: center; }
+  .shop-item .nm { font-weight: 800; }
+  .shop-item .pr { font: 800 13px ui-monospace, monospace; color: var(--gold); }
+  .shop-item .ds { grid-column: 2; font-size: 12px; color: var(--mute); }
+  .shop-item .lv { grid-column: 3; font-size: 11px; color: #9be28f; text-align: right; }
+  #shop-close { margin-top: 12px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #1c232d; }
+
+  #toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); padding: 8px 14px; border-radius: 10px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #pause { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); font: 900 42px system-ui; }
+
+  #end { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(5,7,10,.82); padding: 16px; }
+  .end-box { width: min(520px, 100%); padding: 22px; text-align: center; }
+  #end-title { margin: 0; font-size: 44px; }
+  #end-title.gauche { color: var(--gl); } #end-title.droite { color: var(--dl); }
+  #end-pres { font-size: 20px; margin: 8px 0 4px; }
+  #end-reason { color: var(--mute); margin-bottom: 14px; }
+  #end-poll { text-align: left; }
+  #btn-replay { margin-top: 14px; padding: 10px 18px; border-radius: 10px; border: 0; background: var(--gold); color: #111; font-weight: 900; }
+
+  @media (max-width: 1100px) { #log, #help { display: none; } #poll { width: 220px; } .obj { width: 150px; } .obj.mid { width: 180px; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="menu">
+  <div class="menu-box">
+    <h1>Campagne <span class="r">20</span><span class="b">27</span></h1>
+    <div class="tag">MOBA 3 contre 3 · gauche contre droite · le premier camp qui conquiert l’Élysée gagne</div>
+    <div class="rules">
+      <div class="rule"><b>🗳️ Militants & bureaux</b><span>Vos militants partent du QG et vont déposer leurs bulletins. 6 bulletins conquièrent un bureau adverse. Quand tous les bureaux d’une voie sont à vous, ils votent à l’objectif.</span></div>
+      <div class="rule"><b>🏛️ Objectifs</b><span>Assemblée : militants +25 %. Sénat : parrainages et dons en continu. Élysée : 24 bulletins = victoire.</span></div>
+      <div class="rule"><b>📊 Sondage</b><span>Votre puissance dépend de votre score dans le sondage. Les polémiques font baisser l’adversaire. Le meilleur sondage du camp gagnant est élu.</span></div>
+      <div class="rule"><b>🏘️ Jungle</b><span>Mairies : parrainages, de plus en plus à chaque passage. Meetings : dons. Attention : 10 s d’immobilisation.</span></div>
+    </div>
+    <div id="pick-teams"></div>
+    <div id="pick-cands"></div>
+    <div class="keys">
+      <kbd>Clic</kbd> se déplacer / attaquer / entrer dans un camp · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> sorts vers le curseur (<kbd>Maj</kbd>+touche pour viser) ·
+      <kbd>B</kbd> retour au QG · <kbd>P</kbd> boutique · <kbd>S</kbd> stop · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause
+    </div>
+  </div>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="top" class="panel">
+    <div class="obj" id="obj-top"><div class="on"><span>🏛️ Assemblée</span></div><div class="bar"><div class="fill-g"></div><div class="fill-d"></div></div><div class="st"></div></div>
+    <div class="obj mid" id="obj-mid"><div class="on"><span>⭐ Élysée</span></div><div class="bar"><div class="fill-g"></div><div class="fill-d"></div></div><div class="st"></div></div>
+    <div class="obj" id="obj-bot"><div class="on"><span>🏛️ Sénat</span></div><div class="bar"><div class="fill-g"></div><div class="fill-d"></div></div><div class="st"></div></div>
+    <div id="timer"></div>
+  </div>
+  <div id="poll" class="panel"><h3>Sondage · intentions de vote</h3><div id="poll-list"></div><div id="parr"></div></div>
+  <div id="log"></div>
+  <canvas id="minimap"></canvas>
+  <div id="bottom" class="panel">
+    <div id="me">
+      <div id="me-avatar" class="avatar"></div>
+      <div>
+        <div id="me-name"></div>
+        <div id="me-poll"></div>
+        <div class="hpbar"><div id="me-hp"></div></div>
+        <div id="me-hpt"></div>
+        <div id="me-status"></div>
+      </div>
+    </div>
+    <div id="abilities"></div>
+    <div id="right-bottom">
+      <div id="me-dons"></div>
+      <div id="me-items"></div>
+      <button id="btn-shop">Boutique (P)</button>
+    </div>
+  </div>
+  <div id="help" class="panel">Convertissez les militants adverses avant qu’ils ne votent. Les bureaux de vote adverses vous tirent dessus : avancez derrière vos militants.</div>
+</div>
+
+<div id="shop" class="hidden">
+  <div class="shop-box panel">
+    <h2>Matériel de campagne</h2>
+    <div id="shop-where"></div>
+    <div id="shop-list"></div>
+    <button id="shop-close">Fermer (Échap)</button>
+  </div>
+</div>
+<div id="pause" class="hidden">Pause</div>
+<div id="toast"></div>
+
+<div id="end" class="hidden">
+  <div class="end-box panel">
+    <h2 id="end-title"></h2>
+    <div id="end-pres"></div>
+    <div id="end-reason"></div>
+    <div id="end-poll"></div>
+    <button id="btn-replay">Nouvelle campagne</button>
+  </div>
+</div>
+
+<script src="src/data.js"></script>
+<script src="src/map.js"></script>
+<script src="src/game.js"></script>
+<script src="src/ai.js"></script>
+<script src="src/render.js"></script>
+<script src="src/ui.js"></script>
+</body>
+</html>
