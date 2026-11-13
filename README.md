@@ -16,6 +16,44 @@ python3 -m http.server 8127 --directory .
 
 puis ouvrez http://localhost:8127.
 
+Le menu propose trois modes :
+
+1. **Solo** : seul avec et contre des bots. Vous choisissez votre camp, puis un candidat de ce camp ou un neutre. Fonctionne sans serveur, même en ouvrant `index.html` directement.
+2. **En ligne · 3 joueurs contre les bots** : les 3 joueurs sont dans le même camp. On crée une **salle** dont on partage le **code** (l’hôte choisit le camp et la durée), ou on passe par le **matchmaking**.
+3. **En ligne · 3 contre 3** : matchmaking à 6 joueurs.
+
+En matchmaking, on ne choisit **pas** son camp : le serveur l’attribue. Chacun choisit ensuite un candidat de son camp ou un neutre, sans doublon, avec **1 tank, 1 DPS et 1 soutien par équipe** (les classes déjà prises par les coéquipiers sont grisées). Les bots complètent les équipes. Sans choix à la fin du compte à rebours (45 s), le serveur attribue un candidat.
+
+## Jeu en ligne
+
+Les modes en ligne ont besoin du serveur Node fourni (`server/`, Node 18 ou plus) :
+
+```bash
+npm install
+npm start
+```
+
+puis ouvrez http://localhost:8080 dans plusieurs onglets ou sur plusieurs machines du réseau local (avec l’adresse IP de la machine). Le même serveur sert les fichiers du jeu et le WebSocket (`/ws`).
+
+- Le serveur est **autoritaire** : chaque salle fait tourner sa propre copie du moteur (`src/data.js`, `map.js`, `game.js`, `ai.js`, chargés dans un contexte `vm` isolé) à 60 Hz. Il envoie l’état environ 20 fois par seconde ; le navigateur interpole ces instantanés pour un rendu fluide.
+- Les navigateurs n’envoient que des **intentions** : direction au clavier, clic (déplacement ou cible), sort (visée automatique, ou point visé avec Maj), récolte (Entrée), cible (Tab), retour au QG (B), achat.
+- Chaque joueur humain a l’attaque automatique en mouvement et la visée automatique. La difficulté ne s’applique qu’aux bots adverses du solo.
+- Si un joueur quitte la partie (Échap, puis « Quitter la partie ») ou perd la connexion, un bot reprend son candidat.
+
+Variables d’environnement : `PORT` (8080 par défaut), `PICK_TIME` (durée de la sélection, 45 s), `MM_COOP_WAIT` (20 s : passé ce délai, une partie coop démarre avec les joueurs présents) et `MM_PVP_WAIT` (60 s : passé ce délai, un 3 contre 3 démarre s’il y a au moins 2 joueurs, en camps équilibrés complétés par des bots).
+
+Si la page du jeu est servie ailleurs que par le serveur (par exemple sur GitHub Pages), indiquez l’adresse du serveur dans le champ **Serveur** du menu en ligne (`wss://mon-serveur.example`) ou dans `window.MOBA_SERVER` en bas de `index.html`.
+
+### Hébergement
+
+Un hébergement **statique** comme GitHub Pages suffit pour le solo, mais **pas** pour le jeu en ligne : il faut un processus Node qui reste allumé et accepte les WebSockets. Options possibles :
+
+- **Render**, **Railway** ou **Fly.io** : déploiement direct du dépôt (`npm install`, puis `npm start`, port fourni par la variable `PORT`). Les offres gratuites mettent souvent le serveur en veille quand personne ne joue, d’où une première connexion lente.
+- **Un petit VPS** (Scaleway, OVH, Hetzner…) : `npm start` derrière un proxy HTTPS (Caddy ou nginx) qui transmet aussi les WebSockets, pour pouvoir utiliser `wss://`.
+- **Mixte** : le jeu sur GitHub Pages et le serveur sur l’une des options ci-dessus, en renseignant l’adresse `wss://` du serveur.
+
+Rien n’est déployé publiquement pour l’instant.
+
 ## La carte
 
 ![Carte](docs/carte.jpg)
@@ -93,7 +131,7 @@ Le jeu se joue entièrement au clavier ; la souris est facultative. Le menu prop
 - **Tab** : verrouiller le candidat adverse le plus proche (prioritaire pour les attaques et les sorts). **X** : libérer la cible.
 - **Entrée** : récolter la mairie ou le meeting le plus proche.
 - **B** : retour au QG. **P** : boutique, puis **1** à **9** pour acheter.
-- **Espace** : caméra libre. **Molette** : zoom. **Échap** : pause.
+- **Espace** : caméra libre. **Molette** : zoom. **Échap** : pause en solo ; en ligne, menu pour quitter (la partie continue).
 
 Quand votre candidat est mis KO par un scandale, un grand compte à rebours s'affiche au centre de l'écran jusqu'à son retour. Le délai de retour de chaque candidat apparaît aussi dans le sondage.
 
@@ -109,6 +147,8 @@ src/ai.js       IA des candidats non joueurs
 src/render.js   rendu 2D (texture du sol, carte de map.html, mini-carte)
 src/render3d.js rendu 3D : ville, bâtiments, candidats caricaturés, militants
 src/ui.js       menu, HUD, contrôles souris / clavier, surcouche, boucle de jeu
+src/net.js      client en ligne : connexion, miroir de l’état, interpolation des instantanés
+server/server.js serveur en ligne : salles, codes, matchmaking, sélection, moteur à 60 Hz
 ```
 
 Tous les équilibrages se règlent dans `CFG` (`src/data.js`).

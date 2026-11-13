@@ -1,0 +1,16 @@
+{
+  "name": "campagne-2027",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MOBA 3v3 de la présidentielle 2027 — serveur de jeu en ligne",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -12,10 +12,11 @@
   const mouse = { x: 0, y: 0, inside: false };
   let shopOpen = false, hudTick = 0, toastUntil = 0, clickFx = null, hover = null;
   const keys = new Set();
-  let kbMoving = false;
+  let lastDir = '';
+  let online = false, onlineMenu = false;
 
   // préférences (confort personnel, peut être indisponible)
-  const prefs = { controls: 'mixte', difficulty: 'facile', duration: 10 };
+  const prefs = { controls: 'mixte', difficulty: 'facile', duration: 10, name: '', server: '' };
   try { Object.assign(prefs, JSON.parse(localStorage.getItem('moba2027-prefs') || '{}')); } catch (e) { /* stockage indisponible */ }
   function savePrefs() { try { localStorage.setItem('moba2027-prefs', JSON.stringify(prefs)); } catch (e) { /* ignore */ } }
   if (!DIFFICULTY[prefs.difficulty]) prefs.difficulty = 'facile';
@@ -45,7 +46,40 @@
 
   // ── Menu ──
   let chosenTeam = null;
+  let menuMode = null; // 'solo' | 'coop' | 'pvp'
+  function renderModes() {
+    for (const b of document.querySelectorAll('.mode-btn')) b.classList.toggle('on', b.dataset.mode === menuMode);
+    $('#solo-panel').classList.toggle('hidden', menuMode !== 'solo');
+    $('#online-panel').classList.toggle('hidden', !menuMode || menuMode === 'solo');
+  }
+  for (const b of document.querySelectorAll('.mode-btn')) {
+    b.onclick = () => {
+      if (lobby.room || lobby.queue) return toast('Quittez d’abord la salle ou la file d’attente');
+      menuMode = b.dataset.mode; renderModes();
+      if (menuMode === 'solo') renderMenu(); else renderOnline();
+    };
+  }
+  function candCard(d, team, onClick, extra) {
+    const card = document.createElement('button');
+    card.className = 'cand-card ' + team + (d.neutral ? ' neutral' : '') + (extra && extra.cls ? ' ' + extra.cls : '');
+    card.dataset.id = d.id;
+    const ab = d.abilities;
+    card.title = ['Q', 'W', 'E', 'R'].map((k, i) => `${spellKey(k, i)} ${ab[k].name} — ${ab[k].desc}`).join('\n');
+    card.innerHTML = `
+      <div class="avatar ${team}">${d.initials}</div>
+      <div class="cc-body">
+        <div class="cc-name">${d.name}${d.neutral ? ' <span class="neu">neutre · plus faible</span>' : ''}${extra && extra.tag ? ` <span class="taken">${esc(extra.tag)}</span>` : ''}</div>
+        <div class="cc-meta">${d.party} · ${CLASS_NAMES[d.cls]} · ${ROLE_NAMES[d.role]}</div>
+        <ul>${['Q', 'W', 'E', 'R'].map((k, i) => `<li><b>${spellKey(k, i)}</b> ${ab[k].name} <span>— ${ab[k].desc}</span></li>`).join('')}</ul>
+      </div>`;
+    if (extra && extra.disabled) card.disabled = true;
+    card.onclick = onClick;
+    return card;
+  }
+  const CLS_TITLES = { tank: 'Tanks — voie de l’Assemblée', dps: 'DPS — avenue de l’Élysée', soutien: 'Soutiens — voie du Sénat' };
+  function esc(t) { return String(t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
   function renderMenu() {
+    renderModes();
     const teamsEl = $('#pick-teams');
     teamsEl.innerHTML = '';
     for (const t of ['gauche', 'droite']) {
@@ -55,14 +89,15 @@
       b.onclick = () => { chosenTeam = t; renderMenu(); };
       teamsEl.appendChild(b);
     }
-    const opt = $('#options');
+    const opt = $('#solo-options');
     opt.innerHTML = `
       <label>Difficulté
         <select id="opt-diff">${Object.entries(DIFFICULTY).map(([k, d]) => `<option value="${k}"${prefs.difficulty === k ? ' selected' : ''}>${d.label}</option>`).join('')}</select>
       </label>
       <label>Durée
         <select id="opt-dur">${CFG.durations.map((m) => `<option value="${m}"${prefs.duration === m ? ' selected' : ''}>${m} min</option>`).join('')}</select>
-      </label>
+      </label>`;
+    $('#options').innerHTML = `
       <label>Contrôles
         <select id="opt-ctl">
           <option value="mixte"${prefs.controls === 'mixte' ? ' selected' : ''}>Flèches (ou souris) · sorts ${keyLabel.KeyQ} ${keyLabel.KeyW} ${keyLabel.KeyE} ${keyLabel.KeyR}</option>
@@ -71,7 +106,7 @@
       </label>`;
     $('#opt-diff').onchange = (e) => { prefs.difficulty = e.target.value; CFG.difficulty = prefs.difficulty; savePrefs(); };
     $('#opt-dur').onchange = (e) => { prefs.duration = +e.target.value; CFG.timeLimit = prefs.duration * 60; savePrefs(); };
-    $('#opt-ctl').onchange = (e) => { prefs.controls = e.target.value; savePrefs(); renderMenu(); };
+    $('#opt-ctl').onchange = (e) => { prefs.controls = e.target.value; savePrefs(); renderMenu(); if (menuMode && menuMode !== 'solo') renderOnline(); };
     $('#keys-help').innerHTML = controlsHelp();
     const list = $('#pick-cands');
     list.innerHTML = '';
@@ -80,26 +115,154 @@
     for (const cls of ['tank', 'dps', 'soutien']) {
       const h = document.createElement('h3');
       h.className = 'cls-title';
-      h.textContent = { tank: 'Tanks — voie de l’Assemblée', dps: 'DPS — avenue de l’Élysée', soutien: 'Soutiens — voie du Sénat' }[cls];
+      h.textContent = CLS_TITLES[cls];
       list.appendChild(h);
       for (const d of CANDIDATES.filter((c) => c.cls === cls && (c.team === chosenTeam || c.neutral))) {
-        const card = document.createElement('button');
-        card.className = 'cand-card ' + chosenTeam + (d.neutral ? ' neutral' : '');
-        card.dataset.id = d.id;
-        const ab = d.abilities;
-        card.title = ['Q', 'W', 'E', 'R'].map((k, i) => `${spellKey(k, i)} ${ab[k].name} — ${ab[k].desc}`).join('\n');
-        card.innerHTML = `
-          <div class="avatar ${chosenTeam}">${d.initials}</div>
-          <div class="cc-body">
-            <div class="cc-name">${d.name}${d.neutral ? ' <span class="neu">neutre · plus faible</span>' : ''}</div>
-            <div class="cc-meta">${d.party} · ${CLASS_NAMES[d.cls]} · ${ROLE_NAMES[d.role]}</div>
-            <ul>${['Q', 'W', 'E', 'R'].map((k, i) => `<li><b>${spellKey(k, i)}</b> ${ab[k].name} <span>— ${ab[k].desc}</span></li>`).join('')}</ul>
-          </div>`;
-        card.onclick = () => start(d.id, chosenTeam);
-        list.appendChild(card);
+        list.appendChild(candCard(d, chosenTeam, () => start(d.id, chosenTeam)));
       }
     }
   }
+
+  // ── Menu en ligne : salle à code, matchmaking, sélection des candidats ──
+  const lobby = { room: null, queue: null, status: '', busy: false };
+  const onlineEl = $('#online-panel');
+  function setStatus(msg, err) { lobby.status = msg ? `<p class="status${err ? ' err' : ''}">${esc(msg)}</p>` : ''; renderOnline(); }
+  function readIdentity() {
+    const n = $('#on-name'), sv = $('#on-server');
+    if (n) prefs.name = n.value.trim().slice(0, 18);
+    if (sv) prefs.server = sv.value.trim();
+    savePrefs();
+  }
+  async function withServer(fn) {
+    readIdentity();
+    if (lobby.busy) return;
+    lobby.busy = true; setStatus('Connexion au serveur…');
+    try {
+      await Net.connect(prefs.server || Net.defaultUrl(), prefs.name);
+      lobby.busy = false; setStatus('');
+      fn();
+    } catch (e) {
+      lobby.busy = false;
+      setStatus(e.message + ' — lancez le serveur (npm start) ou vérifiez l’adresse.', true);
+    }
+  }
+  function renderOnline() {
+    if (!menuMode || menuMode === 'solo') return;
+    const R = lobby.room, Q = lobby.queue;
+    if (R) return renderRoom(R);
+    if (Q) {
+      const full = Q.n >= Q.need;
+      const bots = Q.mode === 'coop' ? 'les bots complètent l’équipe' : `bots en renfort s’il y a au moins ${Q.min} joueurs`;
+      onlineEl.innerHTML = `<div class="on-box">
+        <h2>${Q.mode === 'coop' ? 'Matchmaking · 3 joueurs contre les bots' : 'Matchmaking · 3 contre 3'}</h2>
+        <p class="big">Recherche de joueurs… <b>${Q.n} / ${Q.need}</b></p>
+        <p class="hint">${full ? 'Partie trouvée !' : `Lancement dans ${Q.left} s au plus tard (${bots}).`} Le serveur vous attribuera un camp.</p>
+        <button class="btn" id="on-cancel">Annuler</button>${lobby.status}</div>`;
+      $('#on-cancel').onclick = () => { Net.send({ t: 'leave' }); lobby.queue = null; renderOnline(); };
+      return;
+    }
+    const coop = menuMode === 'coop';
+    onlineEl.innerHTML = `<div class="on-box">
+      <h2>${coop ? 'En ligne · 3 joueurs contre les bots' : 'En ligne · 3 contre 3'}</h2>
+      <div class="on-row">
+        <label>Pseudo <input id="on-name" maxlength="18" placeholder="Votre pseudo" value="${esc(prefs.name)}"></label>
+        <label>Serveur <input id="on-server" placeholder="${esc(Net.defaultUrl())}" value="${esc(prefs.server)}"></label>
+      </div>
+      ${coop ? `<div class="on-grid">
+        <div class="on-card"><b>Créer une salle</b><span>Un code à partager à 2 amis. Vous choisissez le camp.</span>
+          <div class="on-row"><select id="on-team"><option value="">Camp au hasard</option><option value="gauche">Gauche</option><option value="droite">Droite</option></select>
+          <select id="on-dur">${CFG.durations.map((m) => `<option value="${m}"${prefs.duration === m ? ' selected' : ''}>${m} min</option>`).join('')}</select></div>
+          <button class="btn gold" id="on-create">Créer la salle</button></div>
+        <div class="on-card"><b>Rejoindre une salle</b><span>Entrez le code reçu.</span>
+          <div class="on-row"><input id="on-code" maxlength="5" placeholder="CODE" class="code-in"></div>
+          <button class="btn" id="on-join">Rejoindre</button></div>
+        <div class="on-card"><b>Matchmaking</b><span>Avec d’autres joueurs au hasard. Le serveur attribue le camp.</span>
+          <button class="btn" id="on-mm">Chercher une partie</button></div>
+      </div>` : `<div class="on-grid one">
+        <div class="on-card"><b>Matchmaking 3 contre 3</b><span>6 joueurs, 3 par camp. Le serveur attribue les camps ; ensuite chacun choisit un candidat de son camp ou neutre (1 tank, 1 DPS, 1 soutien par équipe).</span>
+          <button class="btn gold" id="on-mm">Chercher une partie</button></div>
+      </div>`}
+      ${lobby.status}</div>`;
+    $('#on-mm').onclick = () => withServer(() => Net.send({ t: 'queue', mode: menuMode }));
+    if (coop) {
+      // valeurs lues avant la connexion : le panneau est redessiné pendant qu'elle s'établit
+      $('#on-create').onclick = () => {
+        const team = $('#on-team').value || null, duration = +$('#on-dur').value;
+        withServer(() => Net.send({ t: 'create', team, duration }));
+      };
+      const join = () => { const code = $('#on-code').value.trim().toUpperCase(); if (code.length < 4) return setStatus('Code de salle invalide', true); withServer(() => Net.send({ t: 'join', code })); };
+      $('#on-join').onclick = join;
+      $('#on-code').onkeydown = (e) => { if (e.key === 'Enter') join(); };
+    }
+  }
+  function renderRoom(R) {
+    const me = R.players.find((p) => p.id === Net.me) || {};
+    const host = R.host === Net.me;
+    const title = R.mode === 'coop' ? '3 joueurs contre les bots' : '3 contre 3';
+    const players = R.players.map((p) => {
+      const d = p.pick && CAND_BY_ID[p.pick];
+      return `<li class="${p.team || ''}"><span class="pl-n">${esc(p.name)}${p.id === Net.me ? ' (vous)' : ''}${p.id === R.host ? ' ★' : ''}</span>
+        <span class="pl-t">${p.team ? TEAMS[p.team].name : ''}</span>
+        <span class="pl-p">${d ? `${d.name} · ${CLASS_NAMES[d.cls]}` : R.phase === 'pick' ? 'choisit…' : ''}${p.ready ? ' ✔' : ''}</span></li>`;
+    }).join('');
+    const max = R.mode === 'pvp' ? 6 : 3;
+    let html = `<div class="on-box">
+      <h2>${R.matchmade ? 'Partie trouvée' : 'Salle'} · ${title}</h2>
+      ${R.matchmade ? '' : `<p class="big">Code de la salle : <b class="code">${R.code}</b> <button class="btn small" id="on-copy">Copier</button></p>`}
+      <ul class="players">${players}${Array.from({ length: max - R.players.length }, () => '<li class="empty"><span class="pl-n">— bot —</span></li>').join('')}</ul>`;
+    if (R.phase === 'lobby') {
+      html += host
+        ? `<div class="on-row"><label>Camp <select id="rm-team"><option value="gauche"${R.team === 'gauche' ? ' selected' : ''}>Gauche</option><option value="droite"${R.team === 'droite' ? ' selected' : ''}>Droite</option></select></label>
+           <label>Durée <select id="rm-dur">${CFG.durations.map((m) => `<option value="${m}"${R.duration === m ? ' selected' : ''}>${m} min</option>`).join('')}</select></label>
+           <button class="btn gold" id="rm-begin">Choisir les candidats${R.players.length < 3 ? ' (les bots complètent)' : ''}</button></div>`
+        : `<p class="hint">Camp ${TEAMS[R.team].name.toLowerCase()} · ${R.duration} min · en attente de l’hôte…</p>`;
+    } else if (R.phase === 'pick') {
+      const left = Math.ceil(R.pickLeft);
+      html += `<p class="big">Vous êtes dans le camp <b class="${me.team}">${me.team ? TEAMS[me.team].name : ''}</b>${R.matchmade ? ' (attribué par le serveur)' : ''} ·
+        choisissez un candidat de votre camp ou neutre · <b>${left} s</b></p>
+        <p class="hint">Un candidat par joueur, et 1 tank / 1 DPS / 1 soutien par équipe : les classes déjà prises par vos coéquipiers sont grisées. Sans choix à la fin du temps, un candidat vous est attribué.</p>
+        <div class="on-row"><button class="btn gold" id="rm-ready"${me.pick ? '' : ' disabled'}>${me.ready ? 'Prêt ✔ (annuler)' : 'Prêt !'}</button></div>`;
+    }
+    html += `<div class="on-row"><button class="btn" id="rm-leave">Quitter la salle</button></div>${lobby.status}</div>`;
+    if (R.phase === 'pick') html += '<div id="rm-cands" class="cands-grid"></div>';
+    onlineEl.innerHTML = html;
+    if ($('#on-copy')) $('#on-copy').onclick = () => { try { navigator.clipboard.writeText(R.code); toast('Code copié'); } catch (e) { /* ignore */ } };
+    $('#rm-leave').onclick = () => { Net.send({ t: 'leave' }); lobby.room = null; renderOnline(); };
+    if (R.phase === 'lobby' && host) {
+      $('#rm-team').onchange = (e) => Net.send({ t: 'settings', team: e.target.value });
+      $('#rm-dur').onchange = (e) => Net.send({ t: 'settings', duration: +e.target.value });
+      $('#rm-begin').onclick = () => Net.send({ t: 'begin' });
+    }
+    if (R.phase === 'pick') {
+      $('#rm-ready').onclick = () => Net.send({ t: 'ready', on: !me.ready });
+      const list = $('#rm-cands');
+      for (const cls of ['tank', 'dps', 'soutien']) {
+        const h = document.createElement('h3');
+        h.className = 'cls-title';
+        h.textContent = CLS_TITLES[cls];
+        list.appendChild(h);
+        const mate = R.players.find((p) => p.id !== Net.me && p.team === me.team && p.pick && CAND_BY_ID[p.pick].cls === cls);
+        for (const d of CANDIDATES.filter((c) => c.cls === cls && (c.team === me.team || c.neutral))) {
+          const by = R.players.find((p) => p.pick === d.id);
+          const mine = by && by.id === Net.me;
+          const tag = mine ? 'votre choix' : by ? `pris par ${by.name}` : mate ? `classe prise par ${mate.name}` : '';
+          list.appendChild(candCard(d, me.team, () => Net.send({ t: 'pick', candId: d.id }),
+            { disabled: (by && !mine) || (!!mate && !mine), tag, cls: mine ? 'picked' : '' }));
+        }
+      }
+    }
+  }
+  Net.on('room', (m) => { lobby.room = m; lobby.queue = null; lobby.status = ''; if (!menuMode || menuMode === 'solo') menuMode = m.mode; renderModes(); renderOnline(); });
+  Net.on('queue', (m) => { if (lobby.room) return; lobby.queue = m; renderOnline(); });
+  Net.on('left', () => { lobby.room = null; lobby.queue = null; renderOnline(); });
+  Net.on('err', (m) => { if (running) toast(m.msg); else setStatus(m.msg, true); });
+  Net.on('toast', (m) => toast(m.msg));
+  Net.on('start', (m) => { lobby.room = null; lobby.queue = null; startOnline(m); });
+  Net.on('close', () => {
+    lobby.room = null; lobby.queue = null;
+    if (online && running) { running = false; toast('Connexion au serveur perdue'); backToMenu(); }
+    setStatus('Connexion au serveur perdue', true);
+  });
   function spellKey(k, i) { return prefs.controls === 'clavier' ? String(i + 1) : keyLabel['Key' + k]; }
   function syncKeyLabels() { ['Q', 'W', 'E', 'R'].forEach((k, i) => { KEY_LABEL[k] = spellKey(k, i); }); }
   function controlsHelp() {
@@ -114,8 +277,20 @@
   renderMenu();
 
   function start(candId, team) {
-    syncKeyLabels();
+    online = false;
     Game.newGame(candId, team);
+    beginPlay();
+  }
+  function startOnline(msg) {
+    online = true;
+    Net.startGame(msg);
+    beginPlay();
+  }
+  function beginPlay() {
+    syncKeyLabels();
+    lastDir = ''; onlineMenu = false; aimKey = null; endShown = false;
+    if (shopOpen) toggleShop(false);
+    $('#pause').classList.add('hidden');
     const p = Game.S.player;
     cam.x = p.x; cam.y = p.y; cam.locked = true;
     $('#menu').classList.add('hidden');
@@ -147,45 +322,19 @@
     $('#me-avatar').className = 'avatar ' + p.team;
     $('#me-name').textContent = p.def.name;
   }
-  // visée automatique : cible verrouillée, sinon candidat adverse le plus proche, sinon militant
-  function nearest(list, p, maxD) {
-    let best = null, bd = maxD;
-    for (const e of list) { if (e.team === p.team || !Game.alive(e)) continue; const d = U.dist(p, e); if (d < bd) { bd = d; best = e; } }
-    return best;
+  // Toutes les commandes passent par Game.input : appliquées localement en solo,
+  // envoyées au serveur (qui fait autorité) en ligne.
+  function act(msg) {
+    if (online) { Net.send({ t: 'in', m: msg }); return; }
+    const r = Game.input(Game.S.player, msg);
+    if (r) toast(r);
   }
+  // visée automatique (côté moteur) : cible verrouillée, sinon candidat adverse le plus proche, sinon militant
   function castAuto(k) {
-    const S = Game.S, p = S.player;
-    const ab = p.def.abilities[k];
-    if (['nova', 'shield', 'haste', 'selfheal', 'regen', 'globalheal'].includes(ab.type)) return tryCast(k, p.x, p.y);
-    if (ab.type === 'heal') {
-      let hurt = p, low = p.hp / p.st.maxHp;
-      for (const a of S.cands) if (a.team === p.team && !a.dead && U.dist(a, p) < ab.range && a.hp / a.st.maxHp < low) { low = a.hp / a.st.maxHp; hurt = a; }
-      return tryCast(k, hurt.x, hurt.y);
-    }
-    const reach = Math.min(ab.range || 600, 1600) + 150;
-    const locked = p.target && Game.alive(p.target) && U.dist(p, p.target) < reach ? p.target : null;
-    const t = locked || nearest(S.cands, p, reach) || nearest(S.mil, p, reach);
-    if (ab.type === 'dash') {
-      const kd = keyDir();
-      if (kd) return tryCast(k, p.x + kd.x * ab.range, p.y + kd.y * ab.range);
-      if (t) return tryCast(k, t.x, t.y);
-      const f = p.face || 0;
-      return tryCast(k, p.x + Math.cos(f) * ab.range, p.y + Math.sin(f) * ab.range);
-    }
-    if (!t) { if (Game.unlocked(p, k)) toast('Aucune cible à portée'); else tryCast(k, p.x, p.y); return; }
-    let tx = t.x, ty = t.y;
-    if (ab.type === 'skillshot' && t.kind === 'cand' && t.moveTo) {
-      const n = U.norm(t.moveTo.x - t.x, t.moveTo.y - t.y), lead = (U.dist(p, t) / ab.speed) * t.st.speed * 0.7;
-      tx += n.x * lead; ty += n.y * lead;
-    }
-    tryCast(k, tx, ty);
+    const kd = keyDir();
+    act(kd ? { t: 'cast', k, dx: kd.x, dy: kd.y } : { t: 'cast', k });
   }
-  function tryCast(k, x, y) {
-    const p = Game.S.player;
-    if (Game.cast(p, k, x, y)) return;
-    if (!Game.unlocked(p, k)) toast(`${p.def.abilities[k].name} se débloque à ${CFG.unlock[k]} % dans les sondages (vous : ${p.I.toFixed(1)} %)`);
-    else if (p.cd[k] > 0) toast(`${p.def.abilities[k].name} : encore ${p.cd[k].toFixed(1)} s`);
-  }
+  function tryCast(k, x, y) { act({ t: 'cast', k, aim: true, x, y }); }
 
   // ── Boutique ──
   function buildShop() {
@@ -212,9 +361,7 @@
   }
   let shopOrder = [], shopSel = 0;
   function buyItem(it) {
-    const nx = Game.itemNext(Game.S.player, it.id);
-    const err = Game.buy(Game.S.player, it.id);
-    toast(err || `${nx.name} (niv. ${nx.lvl}) : acheté`);
+    act({ t: 'buy', id: it.id });
     refreshShop();
   }
   function refreshShop() {
@@ -256,13 +403,13 @@
   ov.addEventListener('contextmenu', (e) => e.preventDefault());
   ov.addEventListener('wheel', (e) => { cam.dist = U.clamp(cam.dist * (e.deltaY > 0 ? 1.1 : 0.9), 650, 2400); e.preventDefault(); }, { passive: false });
   ov.addEventListener('mousedown', (e) => {
-    if (!running || paused) return;
+    if (!running || paused || onlineMenu) return;
     mouse.x = e.clientX; mouse.y = e.clientY; mouse.inside = true;
     const p = Game.S.player;
     const w = mouseWorld();
     if (aimKey) { tryCast(aimKey, w.x, w.y); aimKey = null; return; }
-    if (p.dead || p.dash || p.stunUntil > Game.S.t) return;
-    order(p, w);
+    if (p.dead || p.stunUntil > Game.S.t) return;
+    act({ t: 'goto', x: w.x, y: w.y });
     clickFx = { x: w.x, y: w.y, t: performance.now() };
   });
 
@@ -275,33 +422,6 @@
     return best;
   }
 
-  function order(p, w) {
-    const S = Game.S;
-    const tgt = enemyAt(w);
-    if (tgt) { p.target = tgt; p.autoTarget = false; p.moveTo = null; p.campTarget = null; return; }
-    for (const camp of S.camps) {
-      if (U.dist(camp, w) < camp.r + 20) {
-        if (!Game.campAvailable(camp)) { toast('Ce camp n’est pas disponible pour l’instant'); return; }
-        p.campTarget = camp; p.target = null; p.moveTo = null; return;
-      }
-    }
-    p.moveTo = w; p.target = null; p.campTarget = null;
-  }
-
-  function activateCamp(p) {
-    const S = Game.S;
-    let best = null, bd = 420;
-    for (const camp of S.camps) { const d = U.dist(camp, p); if (d < bd) { bd = d; best = camp; } }
-    if (!best) { toast('Aucune mairie ni aucun meeting à proximité'); return; }
-    if (!Game.campAvailable(best)) { toast(`${best.name} : pas disponible pour l’instant`); return; }
-    p.campTarget = best; p.target = null; p.moveTo = null;
-  }
-  function lockNearest(p) {
-    const t = nearest(Game.S.cands, p, 1000);
-    if (!t) { p.target = null; toast('Aucun candidat adverse à proximité'); return; }
-    p.target = t; p.autoTarget = true; // prioritaire pour les attaques et les sorts, sans le poursuivre
-    toast(`Cible : ${t.def.name}`);
-  }
 
   // ── Clavier ──
   const MOVE = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
@@ -312,14 +432,14 @@
     if (!running) return;
     if (e.target && e.target.tagName === 'SELECT') return;
     const code = e.code;
-    const p = Game.S.player;
     if (code === 'Escape') {
       if (shopOpen) toggleShop(false);
       else if (aimKey) aimKey = null;
-      else { paused = !paused; $('#pause').classList.toggle('hidden', !paused); }
+      else if (online) { onlineMenu = !onlineMenu; showPause(onlineMenu); }
+      else { paused = !paused; showPause(paused); }
       return;
     }
-    if (paused) return;
+    if (paused || onlineMenu) return;
     const clavier = prefs.controls === 'clavier';
     if (shopOpen && /^(Digit|Numpad)[1-9]$/.test(code)) { const it = shopOrder[+code.slice(-1) - 1]; if (it) buyItem(it); e.preventDefault(); return; }
     if (shopOpen && (MOVE[code] || code === 'Enter' || code === 'NumpadEnter')) {
@@ -332,8 +452,8 @@
       return;
     }
     if (MOVE[code] || (clavier && MOVE_WASD[code])) { keys.add(code); e.preventDefault(); return; }
-    if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); if (!p.dead) activateCamp(p); return; }
-    if (code === 'Tab') { e.preventDefault(); if (!p.dead) lockNearest(p); return; }
+    if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); act({ t: 'camp' }); return; }
+    if (code === 'Tab') { e.preventDefault(); act({ t: 'lock' }); return; }
     const spellByCode = clavier
       ? { Digit1: 'Q', Digit2: 'W', Digit3: 'E', Digit4: 'R', Numpad1: 'Q', Numpad2: 'W', Numpad3: 'E', Numpad4: 'R' }
       : { KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', Digit1: 'Q', Digit2: 'W', Digit3: 'E', Digit4: 'R' };
@@ -345,33 +465,37 @@
       castAuto(k);
       return;
     }
-    if (code === 'KeyB') Game.recall(p);
+    if (code === 'KeyB') act({ t: 'recall' });
     else if (code === 'KeyP') toggleShop();
     else if (code === 'Space') { cam.locked = !cam.locked; toast(cam.locked ? 'Caméra verrouillée' : 'Caméra libre (bords de l’écran)'); e.preventDefault(); }
-    else if (code === 'KeyS' && !clavier) { p.moveTo = null; p.target = null; p.campTarget = null; }
-    else if (code === 'KeyX') { p.target = null; toast('Cible libérée'); }
+    else if (code === 'KeyS' && !clavier) act({ t: 'stop' });
+    else if (code === 'KeyX') act({ t: 'unlock' });
   });
+  // Échap : pause en solo ; en ligne, simple menu (la partie continue)
+  function showPause(on) {
+    $('#pause').classList.toggle('hidden', !on);
+    $('#pause-t').textContent = online ? 'Menu — la partie continue' : 'Pause';
+  }
+  $('#btn-resume').onclick = () => { if (online) onlineMenu = false; else paused = false; showPause(false); };
+  $('#btn-quit').onclick = () => {
+    if (online) Net.send({ t: 'leave' });
+    running = false; paused = false; onlineMenu = false; showPause(false);
+    backToMenu();
+  };
 
   function keyDir() {
     let dx = 0, dy = 0;
     for (const c of keys) { const v = MOVE[c] || (prefs.controls === 'clavier' && MOVE_WASD[c]); if (v) { dx += v[0]; dy += v[1]; } }
     return dx || dy ? U.norm(dx, dy) : null;
   }
+  // direction maintenue au clavier : transmise seulement quand elle change
+  // (bouger pendant une récolte ou un retour au QG l'annule)
   function keyboardMove() {
-    const S = Game.S, p = S.player;
-    const n = keyDir();
-    if (n) {
-      // bouger pendant une récolte ou un retour au QG l'annule
-      if (p.dead || p.dash || p.stunUntil > S.t || S.over) return;
-      p.moveTo = { x: p.x + n.x * 90, y: p.y + n.y * 90 };
-      p.face = Math.atan2(n.y, n.x);
-      if (p.target && !p.autoTarget) p.target = null; // on garde une cible verrouillée par Tab
-      p.campTarget = null;
-      kbMoving = true;
-    } else if (kbMoving) {
-      kbMoving = false;
-      p.moveTo = null;
-    }
+    const n = paused || onlineMenu || shopOpen ? null : keyDir();
+    const key = n ? n.x.toFixed(3) + ',' + n.y.toFixed(3) : '';
+    if (key === lastDir) return;
+    lastDir = key;
+    act({ t: 'dir', x: n ? n.x : 0, y: n ? n.y : 0 });
   }
 
   mm.addEventListener('mousedown', (e) => {
@@ -379,7 +503,7 @@
     const r = mm.getBoundingClientRect();
     const s = 200 / (MAP.R * 2 + 100);
     const w = { x: (e.clientX - r.left - 100) / s, y: (e.clientY - r.top - 100) / s };
-    if (e.button === 2 || e.shiftKey) order(Game.S.player, w);
+    if (e.button === 2 || e.shiftKey) act({ t: 'goto', x: w.x, y: w.y });
     else { cam.locked = false; cam.x = w.x; cam.y = w.y; }
   });
   mm.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -390,7 +514,7 @@
     return [...S.cands].sort((a, b) => b.I - a.I).map((c) => {
       const pc = Game.share(c) * 100;
       return `<div class="poll-row${c.isPlayer ? ' me' : ''}${c.dead ? ' dead' : ''}">
-        <span class="pn">${c.def.name}${c.dead && !S.over ? ` <em>· retour ${Math.ceil(c.respawnAt - S.t)} s</em>` : ''}</span><span class="pv">${pc.toFixed(1)} %</span>
+        <span class="pn">${c.def.name}${c.human && c.pname ? ` <em class="who">· ${esc(c.pname)}</em>` : ''}${c.dead && !S.over ? ` <em>· retour ${Math.ceil(c.respawnAt - S.t)} s</em>` : ''}</span><span class="pv">${pc.toFixed(1)} %</span>
         <div class="pb"><div style="width:${Math.min(100, pc * 2.5)}%;background:${TEAMS[c.team].color}"></div></div>
         <span class="pk">${c.kills} KO · ${c.deaths} scandales · ${c.conv} conv.</span></div>`;
     }).join('') + `<div class="poll-row und"><span class="pn">Indécis</span><span class="pv">${und.toFixed(1)} %</span></div>`;
@@ -473,9 +597,10 @@
   }
   $('#tips-close').onclick = () => { tipsDone = true; $('#tips').classList.add('hidden'); };
 
+  let endShown = false;
   function showEnd() {
     const S = Game.S;
-    running = false;
+    running = false; endShown = true;
     updateHUD();
     $('#respawn').classList.add('hidden'); gl.classList.remove('dead');
     const pr = S.president, won = S.winner === S.player.team;
@@ -487,10 +612,14 @@
     $('#end-poll').innerHTML = pollRows(S);
     $('#end').classList.remove('hidden');
   }
-  $('#btn-replay').onclick = () => {
+  function backToMenu() {
     $('#end').classList.add('hidden'); $('#hud').classList.add('hidden'); $('#menu').classList.remove('hidden');
+    $('#respawn').classList.add('hidden'); gl.classList.remove('dead');
+    if (shopOpen) toggleShop(false);
     chosenTeam = null; renderMenu();
-  };
+    if (online) renderOnline();
+  }
+  $('#btn-replay').onclick = backToMenu;
 
   // ── Surcouche 2D (barres, noms, textes) projetée sur la 3D ──
   function P(x, y, h) { return R3.project(x, y, h, W, H); }
@@ -568,7 +697,8 @@
       const pct = c.I.toFixed(1) + ' %';
       g.strokeText(pct, q.x, y - 10); g.fillStyle = TEAMS[c.team].light; g.fillText(pct, q.x, y - 10);
       g.font = '600 12px system-ui';
-      g.strokeText(c.def.name, q.x, y + 18); g.fillStyle = c.isPlayer ? '#ffd34d' : '#fff'; g.fillText(c.def.name, q.x, y + 18);
+      const label = c.human && c.pname && !c.isPlayer ? `${c.def.name} · ${c.pname}` : c.def.name;
+      g.strokeText(label, q.x, y + 18); g.fillStyle = c.isPlayer ? '#ffd34d' : c.human ? '#bfe8ff' : '#fff'; g.fillText(label, q.x, y + 18);
       if (c.channel) {
         const pr = 1 - (c.channel.until - S.t) / c.channel.dur;
         g.fillStyle = 'rgba(0,0,0,0.8)'; g.fillRect(x, y + 27, w, 5);
@@ -583,6 +713,7 @@
       tags.forEach(([txt, col], i) => { g.strokeText(txt, q.x, y - 28 - i * 15); g.fillStyle = col; g.fillText(txt, q.x, y - 28 - i * 15); });
     }
     for (const f of S.floats) {
+      if (f.owner && f.owner !== p.id) continue; // texte destiné à un autre joueur
       const life = f.until - S.t, dur = f.big ? 2 : 1.2;
       const q = P(f.x, f.y, 90 + (dur - life) * 40);
       g.globalAlpha = U.clamp(life / 0.4, 0, 1);
@@ -598,7 +729,11 @@
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    if (running && !paused) {
+    if (running && online) {
+      keyboardMove();
+      Net.frame();
+      if (Game.S.over && !endShown) showEnd();
+    } else if (running && !paused) {
       keyboardMove();
       acc += dt;
       while (acc >= STEP && running) {
@@ -645,5 +780,5 @@
   }
   requestAnimationFrame(frame);
 
-  window.__moba = { start, cam, get S() { return Game.S; } };
+  window.__moba = { start, cam, act, get online() { return online; }, get S() { return Game.S; } };
 })();

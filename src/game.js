@@ -1027,7 +1027,8 @@ const Game = (() => {
       case 'buy': {
         const it = ITEM_BY_ID[msg.id];
         if (!it) return null;
-        return buy(c, it.id) || `${it.name} : acheté`;
+        const nx = itemNext(c, it.id);
+        return buy(c, it.id) || `${nx.name} (niv. ${nx.lvl}) : acheté`;
       }
     }
     return null;

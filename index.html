@@ -16,6 +16,46 @@
   canvas#overlay { position: fixed; inset: 0; display: block; cursor: crosshair; }
   #options { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin: -4px 0 16px; }
   #options label { display: flex; gap: 8px; align-items: center; color: var(--mute); font-size: 13px; }
+  #solo-options { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin: 0 0 16px; }
+  #solo-options label { display: flex; gap: 8px; align-items: center; color: var(--mute); font-size: 13px; }
+  #solo-options select, .on-box select, .on-box input { background: #1c232d; color: var(--text); border: 1px solid #3a4452; border-radius: 8px; padding: 6px 8px; font: inherit; }
+  #modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .mode-btn { text-align: left; padding: 14px 16px; border-radius: 14px; border: 2px solid var(--line); background: var(--panel); }
+  .mode-btn b { display: block; font-size: 17px; margin-bottom: 4px; }
+  .mode-btn span { color: var(--mute); font-size: 13px; }
+  .mode-btn:hover, .mode-btn:focus-visible { border-color: var(--gold); }
+  .mode-btn.on { border-color: var(--gold); background: rgba(255,211,77,.1); }
+  .on-box { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .on-box h2 { margin: 0 0 10px; font-size: 20px; }
+  .on-box .big { font-size: 16px; margin: 6px 0; }
+  .on-box .big b.gauche { color: var(--gl); } .on-box .big b.droite { color: var(--dl); }
+  .on-box .hint { text-align: left; }
+  .on-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .on-row label { display: flex; gap: 8px; align-items: center; color: var(--mute); font-size: 13px; }
+  .on-row input { min-width: 180px; }
+  .on-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 10px; }
+  .on-card { display: flex; flex-direction: column; gap: 6px; background: #161c24; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .on-card span { color: var(--mute); font-size: 13px; flex: 1; }
+  .code-in { text-transform: uppercase; letter-spacing: .3em; font-weight: 800; width: 140px; min-width: 0 !important; }
+  .code { font: 900 26px ui-monospace, monospace; letter-spacing: .2em; color: var(--gold); }
+  .btn { padding: 9px 16px; border-radius: 10px; border: 1px solid #3a4452; background: #1c232d; font-weight: 800; }
+  .btn.gold { background: var(--gold); color: #111; border-color: var(--gold); }
+  .btn.small { padding: 4px 10px; font-size: 12px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .status { margin: 10px 0 0; color: #9be28f; }
+  .status.err { color: #ff9b9b; }
+  .players { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 4px; }
+  .players li { display: grid; grid-template-columns: 1.3fr .6fr 1.4fr; gap: 8px; padding: 6px 10px; border-radius: 8px; background: #161c24; border-left: 4px solid #3a4452; }
+  .players li.gauche { border-color: var(--g); } .players li.droite { border-color: var(--d); }
+  .players li.empty { color: var(--mute); font-style: italic; }
+  .pl-n { font-weight: 700; } .pl-t, .pl-p { color: var(--mute); font-size: 13px; }
+  .cands-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+  .cand-card:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .cand-card.picked { border-color: var(--gold) !important; background: rgba(255,211,77,.08); }
+  .cand-card .taken { font-size: 11px; font-weight: 700; color: var(--gold); background: #2b2a1c; border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
+  .poll-row em.who { color: #bfe8ff; font-size: 11px; }
+  .pause-box { text-align: center; }
+  #pause-t { font: 900 42px system-ui; margin-bottom: 12px; }
   #options select { background: #1c232d; color: var(--text); border: 1px solid #3a4452; border-radius: 8px; padding: 6px 8px; font: inherit; }
   #respawn { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; padding: 18px 30px; }
   #respawn .rs-t { font: 900 34px system-ui; color: var(--gold); letter-spacing: .02em; }
@@ -142,7 +182,7 @@
 
   #toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); padding: 8px 14px; border-radius: 10px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   #toast.show { opacity: 1; }
-  #pause { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); font: 900 42px system-ui; }
+  #pause { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); }
 
   #end { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(5,7,10,.82); padding: 16px; }
   .end-box { width: min(520px, 100%); padding: 22px; text-align: center; }
@@ -170,9 +210,18 @@
       <div class="rule"><b>📊 Sondage</b><span>Tout le monde part de 0 %. Sorts débloqués à 5, 10, 15 et 30 %. À la fin du temps (5, 10 ou 15 min), le candidat en tête des sondages l’emporte pour son camp.</span></div>
       <div class="rule"><b>🏘️ Jungle</b><span>Mairies : parrainages. Meetings : dons. Entrée pour récolter : 12 s immobile chez soi, 7 s chez l’adversaire. Bouger annule.</span></div>
     </div>
+    <div id="modes">
+      <button class="mode-btn" data-mode="solo"><b>🎮 Solo</b><span>Seul avec et contre des bots. Vous choisissez votre camp puis un candidat.</span></button>
+      <button class="mode-btn" data-mode="coop"><b>🤝 En ligne · 3 joueurs contre les bots</b><span>Avec un code de salle à partager, ou en matchmaking.</span></button>
+      <button class="mode-btn" data-mode="pvp"><b>⚔️ En ligne · 3 contre 3</b><span>Matchmaking : le serveur attribue les camps.</span></button>
+    </div>
     <div id="options"></div>
-    <div id="pick-teams"></div>
-    <div id="pick-cands"></div>
+    <div id="solo-panel" class="hidden">
+      <div id="solo-options" class="opts"></div>
+      <div id="pick-teams"></div>
+      <div id="pick-cands"></div>
+    </div>
+    <div id="online-panel" class="hidden"></div>
     <div class="keys" id="keys-help"></div>
   </div>
 </div>
@@ -225,7 +274,11 @@
     <button id="shop-close">Fermer (Échap)</button>
   </div>
 </div>
-<div id="pause" class="hidden">Pause</div>
+<div id="pause" class="hidden">
+  <div class="pause-box"><div id="pause-t">Pause</div>
+    <div class="on-row"><button class="btn gold" id="btn-resume">Reprendre (Échap)</button><button class="btn" id="btn-quit">Quitter la partie</button></div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <div id="end" class="hidden">
@@ -245,6 +298,11 @@
 <script src="src/ai.js"></script>
 <script src="src/render.js"></script>
 <script src="src/render3d.js"></script>
+<script>
+  // Adresse du serveur de jeu en ligne si le jeu est hébergé ailleurs (ex. GitHub Pages) :
+  // window.MOBA_SERVER = 'wss://mon-serveur.example/ws';
+</script>
+<script src="src/net.js"></script>
 <script src="src/ui.js"></script>
 </body>
 </html>
