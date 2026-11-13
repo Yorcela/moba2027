@@ -143,7 +143,9 @@
       fn();
     } catch (e) {
       lobby.busy = false;
-      setStatus(e.message + ' — lancez le serveur (npm start) ou vérifiez l’adresse.', true);
+      setStatus(Net.defaultUrl() || prefs.server
+        ? e.message + ' — lancez le serveur (npm start) ou vérifiez l’adresse.'
+        : 'Cette page (GitHub Pages) n’héberge pas de serveur de jeu : indiquez l’adresse d’un serveur dans le champ « Serveur » (voir le README). Le solo fonctionne sans serveur.', true);
     }
   }
   function renderOnline() {
@@ -166,7 +168,7 @@
       <h2>${coop ? 'En ligne · 3 joueurs contre les bots' : 'En ligne · 3 contre 3'}</h2>
       <div class="on-row">
         <label>Pseudo <input id="on-name" maxlength="18" placeholder="Votre pseudo" value="${esc(prefs.name)}"></label>
-        <label>Serveur <input id="on-server" placeholder="${esc(Net.defaultUrl())}" value="${esc(prefs.server)}"></label>
+        <label>Serveur <input id="on-server" placeholder="${esc(Net.defaultUrl() || 'wss://adresse-du-serveur')}" value="${esc(prefs.server)}"></label>
       </div>
       ${coop ? `<div class="on-grid">
         <div class="on-card"><b>Créer une salle</b><span>Un code à partager à 2 amis. Vous choisissez le camp.</span>

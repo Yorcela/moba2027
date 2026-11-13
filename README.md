@@ -44,6 +44,10 @@ Variables d’environnement : `PORT` (8080 par défaut), `PICK_TIME` (durée de 
 
 Si la page du jeu est servie ailleurs que par le serveur (par exemple sur GitHub Pages), indiquez l’adresse du serveur dans le champ **Serveur** du menu en ligne (`wss://mon-serveur.example`) ou dans `window.MOBA_SERVER` en bas de `index.html`.
 
+### GitHub Pages
+
+Le workflow `.github/workflows/pages.yml` publie le jeu sur https://yorcela.github.io/moba2027/ à chaque push sur `main` (ou à la main depuis l’onglet *Actions*). Il copie seulement les fichiers statiques : `index.html`, `map.html`, `src/`, `assets/` et `docs/`. Le solo y fonctionne directement. Pour le jeu en ligne depuis cette page, il faut un serveur hébergé ailleurs, en `wss://` car la page est en HTTPS, dont on saisit l’adresse dans le champ **Serveur** (ou dans `window.MOBA_SERVER`).
+
 ### Hébergement
 
 Un hébergement **statique** comme GitHub Pages suffit pour le solo, mais **pas** pour le jeu en ligne : il faut un processus Node qui reste allumé et accepte les WebSockets. Options possibles :

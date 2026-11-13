@@ -16,6 +16,8 @@ const Net = (() => {
 
   function defaultUrl() {
     if (typeof window !== 'undefined' && window.MOBA_SERVER) return window.MOBA_SERVER;
+    // GitHub Pages ne sert que des fichiers statiques : pas de serveur de jeu à cette adresse
+    if (/\.github\.io$/.test(location.hostname)) return '';
     if (location.protocol === 'http:' || location.protocol === 'https:') return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
     return 'ws://localhost:8080/ws';
   }
@@ -33,6 +35,7 @@ const Net = (() => {
 
   // se connecte (ou réutilise la connexion ouverte) et présente le joueur
   function connect(url, name) {
+    if (!String(url || '').trim() && !defaultUrl()) return Promise.reject(new Error('Indiquez l’adresse du serveur de jeu en ligne'));
     url = normUrl(url);
     if (connected() && ws.url === url) { send({ t: 'hello', name }); return Promise.resolve(); }
     if (ws) { const old = ws; ws = null; try { old.close(); } catch (e) { /* ignore */ } }
