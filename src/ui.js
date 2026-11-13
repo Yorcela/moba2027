@@ -227,7 +227,7 @@
       const cur = it.team ? S.teams[p.team].up[it.key] : p.lv[it.id] || 0;
       b.disabled = !inQG || !nx || p.dons < nx.cost;
       const max = it.team ? 3 : it.lv.length;
-      b.querySelector('.nm').textContent = nx ? (cur ? `Améliorer : ${nx.name}` : nx.name) : (it.team ? it.name : it.lv[max - 1].name);
+      b.querySelector('.nm').textContent = nx ? (cur ? `Améliorer : ${nx.name}` : nx.name) : itemName(it, p.team, max);
       b.querySelector('.ds').textContent = nx ? (cur && !it.team ? `${it.fmt(it.lv[cur - 1].v)} → ` : '') + nx.desc : `Niveau maximum : ${it.team ? it.desc : it.fmt(it.lv[max - 1].v)}`;
       b.querySelector('.pr').textContent = nx ? nx.cost + ' €' : '—';
       b.querySelector('.lv').textContent = `niv. ${cur}/${max}`;
@@ -421,7 +421,7 @@
       const id = p.items[i];
       if (!id) return '<span class="slot" title="vide"></span>';
       const it = ITEM_BY_ID[id], L = it.lv[p.lv[id] - 1];
-      return `<span class="slot" title="${L.name} (niv. ${p.lv[id]}/${it.lv.length}) — ${it.fmt(L.v)}">${it.icon}<sub>${p.lv[id]}</sub></span>`;
+      return `<span class="slot" title="${itemName(it, p.team, p.lv[id])} (niv. ${p.lv[id]}/${it.lv.length}) — ${it.fmt(L.v)}">${it.icon}<sub>${p.lv[id]}</sub></span>`;
     }).join('');
     const e = p.def.fem ? 'e' : '';
     let status = '';

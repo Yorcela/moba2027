@@ -263,46 +263,67 @@ for (const d of CANDIDATES) {
 }
 const CAND_BY_ID = Object.fromEntries(CANDIDATES.map((c) => [c.id, c]));
 
-// ─── Matériel de campagne ────────────────────────────────────────────────────
-// Les objets ne se consomment pas : chacun s'améliore jusqu'au niveau 5, chaque niveau coûtant plus cher
-// et apportant plus. 6 objets personnels au maximum.
-const ITEM_CATS = { vitesse: 'Vitesse', tank: 'Tank', dps: 'DPS', sorts: 'Sorts', recharge: 'Recharge', militants: 'Militants' };
+// ─── Programme et matériel de campagne ────────────────────────────────────────
+// Les objets personnels sont des MESURES du programme, nommées selon le camp : sociales, écologiques et
+// anti-libérales à gauche ; sécuritaires, régaliennes et budgétaires à droite. Chacune s'améliore jusqu'au
+// niveau 5 (plus chère, plus puissante). 6 mesures au maximum.
+// Le matériel de campagne (t-shirts, casquettes, banderoles, flyers, affiches) renforce tous les militants du camp.
+const ITEM_CATS = { dps: 'Polémique (DPS)', tank: 'Résistance (tank)', sorts: 'Sorts', recharge: 'Recharge', vitesse: 'Vitesse', finances: 'Finances', militants: 'Matériel de campagne' };
 const COSTS = [250, 450, 800, 1300, 2000];
-const mkLv = (names, vals, costs = COSTS) => names.map((name, i) => ({ name, cost: costs[i], v: vals[i] }));
+const mkLv = (vals, costs = COSTS) => vals.map((v, i) => ({ cost: costs[i], v }));
 const pct = (v) => Math.round(v * 100);
 const ITEMS = [
-  { id: 'portevoix', cat: 'dps', icon: '📣', stat: 'dmg', fmt: (v) => `+${pct(v)} % dégâts`,
-    lv: mkLv(['Porte-voix', 'Mégaphone', 'Sono', 'Concert géant', 'Stade plein'], [0.12, 0.25, 0.42, 0.62, 0.85]) },
-  { id: 'agence', cat: 'dps', icon: '📰', stat: 'as', fmt: (v) => `+${pct(v)} % vitesse d’attaque`,
-    lv: mkLv(['Attaché de presse', 'Agence de com', 'Cabinet de conseil', 'Agence de pub', 'Empire médiatique'], [0.15, 0.3, 0.5, 0.72, 1]) },
-  { id: 'cm', cat: 'dps', icon: '📱', stat: 'range', fmt: (v) => `+${v} portée, +${Math.round(v / 4)} % dégâts`,
-    lv: mkLv(['Community manager', 'Équipe digitale', 'Armée de trolls', 'Influenceurs', 'Algorithme'], [30, 60, 95, 135, 180]) },
-  { id: 'media', cat: 'tank', icon: '🎙️', stat: 'hp', fmt: (v) => `+${pct(v)} % crédibilité max`,
-    lv: mkLv(['Media training', 'Coach vocal', 'Storytelling', 'Plan com de crise', 'Téflon'], [0.15, 0.3, 0.5, 0.75, 1.05]) },
-  { id: 'secu', cat: 'tank', icon: '🛡️', stat: 'armor', fmt: (v) => `−${pct(v)} % dégâts subis`,
-    lv: mkLv(['Garde du corps', 'Service d’ordre', 'Avocat', 'Cabinet d’avocats', 'Immunité'], [0.06, 0.12, 0.18, 0.24, 0.3], [300, 550, 900, 1400, 2100]) },
-  { id: 'cure', cat: 'tank', icon: '🧘', stat: 'regen', fmt: (v) => `+${(v * 100).toFixed(1)} % crédibilité / s`,
-    lv: mkLv(['Gourde', 'Nuit de sommeil', 'Cure thermale', 'Séminaire au vert', 'Retraite spirituelle'], [0.005, 0.01, 0.016, 0.023, 0.03], [200, 400, 700, 1100, 1700]) },
-  { id: 'plateau', cat: 'sorts', icon: '📺', stat: 'ap', fmt: (v) => `+${pct(v)} % puissance des sorts`,
-    lv: mkLv(['Passage radio', 'Plateau télé', 'Débat du 20 h', 'Grand oral', 'Débat de l’entre-deux-tours'], [0.15, 0.32, 0.55, 0.8, 1.1]) },
-  { id: 'conseillers', cat: 'recharge', icon: '🧑‍💼', stat: 'cdr', fmt: (v) => `−${pct(v)} % temps de recharge`,
-    lv: mkLv(['Conseiller', 'Équipe de conseillers', 'Think tank', 'Cabinet fantôme', 'Spin doctors'], [0.06, 0.12, 0.18, 0.24, 0.3]) },
-  { id: 'bus', cat: 'vitesse', icon: '🚌', stat: 'spd', fmt: (v) => `+${pct(v)} % vitesse de déplacement`,
-    lv: mkLv(['Vélo', 'Scooter', 'Bus de campagne', 'TGV', 'Jet privé'], [0.06, 0.1, 0.14, 0.18, 0.22], [150, 300, 550, 900, 1400]) },
-  // améliorations collectives des militants (niveau max 3 par camp, de plus en plus chères)
-  { id: 'tracts', cat: 'militants', team: true, key: 'hp', name: 'Tracts', icon: '📄', cost: 250, desc: 'Tous vos militants : +20 % PV' },
+  { id: 'portevoix', cat: 'dps', icon: '📣', stat: 'dmg', fmt: (v) => `+${pct(v)} % dégâts`, lv: mkLv([0.12, 0.25, 0.42, 0.62, 0.85]),
+    names: { gauche: ['Taxe sur les superprofits', 'Impôt sur la fortune', 'Blocage des prix', 'Nationalisation des autoroutes', 'Taxe sur les milliardaires'],
+      droite: ['Peines planchers', 'Comparution immédiate', 'Perpétuité réelle', 'Tolérance zéro', 'État fort'] } },
+  { id: 'agence', cat: 'dps', icon: '📰', stat: 'as', fmt: (v) => `+${pct(v)} % vitesse d’attaque`, lv: mkLv([0.15, 0.3, 0.5, 0.72, 1]),
+    names: { gauche: ['Manif du jeudi', 'Grève reconductible', 'Assemblées citoyennes', 'Référendum d’initiative citoyenne', 'Sixième République'],
+      droite: ['Police de proximité', 'Brigades anti-squat', 'Expulsions accélérées', 'Contrôles aux frontières', 'Service militaire obligatoire'] } },
+  { id: 'cm', cat: 'dps', icon: '📱', stat: 'range', fmt: (v) => `+${v} portée, +${Math.round(v / 4)} % dégâts`, lv: mkLv([30, 60, 95, 135, 180]),
+    names: { gauche: ['Médias indépendants', 'Audiovisuel public renforcé', 'Presse libérée des milliardaires', 'Service public du numérique', 'Démocratie partout'],
+      droite: ['Vidéoprotection', 'Caméras-piétons', 'Fichier unique', 'Renseignement territorial', 'Drones de surveillance'] } },
+  { id: 'media', cat: 'tank', icon: '🏥', stat: 'hp', fmt: (v) => `+${pct(v)} % crédibilité max`, lv: mkLv([0.15, 0.3, 0.5, 0.75, 1.05]),
+    names: { gauche: ['Hôpital public', '100 % Sécu', 'Smic à 1 600 €', 'Sécurité sociale alimentaire', 'Allocation d’autonomie'],
+      droite: ['Rigueur budgétaire', 'Baisse des dépenses', 'Règle d’or', 'Équilibre des comptes', 'Remboursement de la dette'] } },
+  { id: 'secu', cat: 'tank', icon: '🛡️', stat: 'armor', fmt: (v) => `−${pct(v)} % dégâts subis`, lv: mkLv([0.06, 0.12, 0.18, 0.24, 0.3], [300, 550, 900, 1400, 2100]),
+    names: { gauche: ['Bouclier tarifaire', 'Bouclier social', 'Gel des loyers', 'Garantie d’emploi', 'Droit opposable au logement'],
+      droite: ['Gendarmerie renforcée', 'Loi de programmation militaire', 'Porte-avions', 'Dissuasion nucléaire', 'Souveraineté régalienne'] } },
+  { id: 'cure', cat: 'tank', icon: '🧘', stat: 'regen', fmt: (v) => `+${(v * 100).toFixed(1)} % crédibilité / s`, lv: mkLv([0.005, 0.01, 0.016, 0.023, 0.03], [200, 400, 700, 1100, 1700]),
+    names: { gauche: ['Droit à la déconnexion', 'Semaine de 32 h', 'Congé climat', 'Retraite à 60 ans', 'Revenu de base'],
+      droite: ['Retour de l’autorité', 'Uniforme à l’école', 'Travailler plus', 'Fin des 35 h', 'Culture du mérite'] } },
+  { id: 'plateau', cat: 'sorts', icon: '🌱', stat: 'ap', fmt: (v) => `+${pct(v)} % puissance des sorts`, lv: mkLv([0.15, 0.32, 0.55, 0.8, 1.1]),
+    names: { gauche: ['Rénovation thermique', 'Fret ferroviaire', 'Sortie des énergies fossiles', 'Planification écologique', 'Règle verte'],
+      droite: ['Nucléaire civil', 'Simplification administrative', 'Baisse des impôts de production', 'Choc de compétitivité', 'Réindustrialisation'] } },
+  { id: 'conseillers', cat: 'recharge', icon: '⏱️', stat: 'cdr', fmt: (v) => `−${pct(v)} % temps de recharge`, lv: mkLv([0.06, 0.12, 0.18, 0.24, 0.3]),
+    names: { gauche: ['Budget participatif', 'Conventions citoyennes', 'Référendum local', 'Démocratie participative', 'Assemblée constituante'],
+      droite: ['Suppression des comités Théodule', 'Gouvernement resserré', 'Ordonnances', '49.3', 'Référendum'] } },
+  { id: 'bus', cat: 'vitesse', icon: '🚆', stat: 'spd', fmt: (v) => `+${pct(v)} % vitesse de déplacement`, lv: mkLv([0.06, 0.1, 0.14, 0.18, 0.22], [150, 300, 550, 900, 1400]),
+    names: { gauche: ['Plan vélo', 'Gratuité des transports', 'Petites lignes de train', 'RER métropolitains', 'Trains de nuit'],
+      droite: ['Permis à 17 ans', 'Fin des ZFE', 'Autoroutes à 140', 'TGV partout', 'Voiture pour tous'] } },
+  { id: 'dons', cat: 'finances', icon: '💶', stat: 'income', fmt: (v) => `+${v} € / s de dons`, lv: mkLv([0.6, 1.2, 2, 3, 4.2], [200, 400, 700, 1100, 1600]),
+    names: { gauche: ['Cotisations militantes', 'Souscription populaire', 'Financement participatif', 'Taxe sur les transactions financières', 'Banque publique d’investissement'],
+      droite: ['Dîner de levée de fonds', 'Club des donateurs', 'Réseau d’affaires', 'Mécénat d’entreprise', 'Baisse des charges'] } },
+  { id: 'achats', cat: 'finances', icon: '🏷️', stat: 'discount', fmt: (v) => `−${pct(v)} % sur tous les achats`, lv: mkLv([0.04, 0.08, 0.12, 0.16, 0.2], [200, 400, 700, 1100, 1600]),
+    names: { gauche: ['Coopérative d’achat', 'Commande publique', 'Économie sociale et solidaire', 'Centrale d’achat publique', 'Prix plafonnés'],
+      droite: ['Chasse au gaspillage', 'Appels d’offres', 'Audit des dépenses', 'Révision des politiques publiques', 'Zéro dépense inutile'] } },
+  // matériel de campagne : améliorations collectives des militants (niveau max 3 par camp, de plus en plus chères)
+  { id: 'tshirts', cat: 'militants', team: true, key: 'hp', name: 'T-shirts', icon: '👕', cost: 250, desc: 'Tous vos militants : +20 % PV' },
+  { id: 'casquettes', cat: 'militants', team: true, key: 'spd', name: 'Casquettes', icon: '🧢', cost: 200, desc: 'Tous vos militants : +12 % vitesse' },
   { id: 'banderoles', cat: 'militants', team: true, key: 'dmg', name: 'Banderoles', icon: '🚩', cost: 250, desc: 'Tous vos militants : +20 % dégâts' },
-  { id: 'baskets', cat: 'militants', team: true, key: 'spd', name: 'Baskets', icon: '👟', cost: 200, desc: 'Tous vos militants : +12 % vitesse' },
+  { id: 'flyers', cat: 'militants', team: true, key: 'n', name: 'Flyers', icon: '📄', cost: 300, desc: '+1 militant dans chaque vague' },
+  { id: 'affiches', cat: 'militants', team: true, key: 'poll', name: 'Affiches', icon: '🖼️', cost: 300, desc: 'Bulletins de vos militants : +25 % de sondage' },
 ];
 const ITEM_BY_ID = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
+// nom d'une mesure selon le camp (niveau 1 à 5)
+function itemName(it, team, lvl) { return it.team ? it.name : it.names[team === 'droite' ? 'droite' : 'gauche'][lvl - 1]; }
 // un id répété = monter cet objet d'un niveau
 const BUILD_ORDER = {
-  mage: ['plateau', 'conseillers', 'tracts', 'plateau', 'media', 'plateau', 'bus', 'conseillers', 'plateau', 'secu', 'media', 'plateau', 'conseillers', 'media'],
-  combattant: ['portevoix', 'media', 'secu', 'portevoix', 'media', 'tracts', 'bus', 'portevoix', 'secu', 'media', 'portevoix', 'cure', 'secu', 'media'],
-  tireur: ['agence', 'portevoix', 'banderoles', 'agence', 'portevoix', 'cm', 'agence', 'portevoix', 'bus', 'agence', 'cm', 'portevoix', 'agence', 'cm'],
+  mage: ['plateau', 'dons', 'conseillers', 'tshirts', 'plateau', 'media', 'plateau', 'flyers', 'bus', 'conseillers', 'plateau', 'secu', 'media', 'plateau', 'conseillers'],
+  combattant: ['portevoix', 'media', 'secu', 'portevoix', 'media', 'tshirts', 'bus', 'portevoix', 'secu', 'media', 'portevoix', 'cure', 'secu', 'media'],
+  tireur: ['agence', 'portevoix', 'banderoles', 'agence', 'portevoix', 'cm', 'agence', 'flyers', 'portevoix', 'bus', 'agence', 'cm', 'portevoix', 'agence'],
   assassin: ['portevoix', 'bus', 'plateau', 'portevoix', 'plateau', 'conseillers', 'portevoix', 'plateau', 'media', 'portevoix', 'plateau', 'bus', 'conseillers'],
-  soutien: ['media', 'conseillers', 'tracts', 'cure', 'plateau', 'baskets', 'conseillers', 'media', 'plateau', 'cure', 'conseillers', 'media', 'plateau'],
-  tank: ['media', 'secu', 'tracts', 'media', 'secu', 'cure', 'conseillers', 'media', 'secu', 'banderoles', 'media', 'secu', 'cure'],
+  soutien: ['dons', 'achats', 'media', 'conseillers', 'tshirts', 'affiches', 'cure', 'casquettes', 'plateau', 'dons', 'conseillers', 'media', 'flyers', 'plateau', 'cure'],
+  tank: ['media', 'secu', 'tshirts', 'media', 'secu', 'cure', 'affiches', 'conseillers', 'media', 'secu', 'banderoles', 'media', 'secu', 'cure'],
 };
 
 const BUREAU_NAMES = [

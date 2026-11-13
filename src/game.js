@@ -51,8 +51,8 @@ const Game = (() => {
       cands: [], mil: [], proj: [], fx: [], floats: [], log: [],
       bureaux: [], obj: {}, camps: [],
       teams: {
-        gauche: { up: { hp: 0, dmg: 0, spd: 0 }, parrainages: 0 },
-        droite: { up: { hp: 0, dmg: 0, spd: 0 }, parrainages: 0 },
+        gauche: { up: { hp: 0, dmg: 0, spd: 0, n: 0, poll: 0 }, parrainages: 0 },
+        droite: { up: { hp: 0, dmg: 0, spd: 0, n: 0, poll: 0 }, parrainages: 0 },
       },
       nextWave: CFG.waveFirst, waveN: 0, player: null, nerfTeam: null,
       // parties courtes : on monte plus vite dans les sondages
@@ -146,7 +146,7 @@ const Game = (() => {
   function foeBot(c) { return !!S.nerfTeam && !c.isPlayer && c.team === S.nerfTeam; }
 
   function stats(c) {
-    const b = { dmg: 0, ap: 0, hp: 0, spd: 0, range: 0, as: 0, cdr: 0, armor: 0, regen: 0 };
+    const b = { dmg: 0, ap: 0, hp: 0, spd: 0, range: 0, as: 0, cdr: 0, armor: 0, regen: 0, income: 0, discount: 0 };
     for (const id of c.items) {
       const it = ITEM_BY_ID[id];
       const v = it.lv[c.lv[id] - 1].v;
@@ -168,7 +168,7 @@ const Game = (() => {
     if (c.weakUntil > S.t) { dm *= 1 - c.weakPct; speed *= 1 - c.weakPct * 0.6; } // affaibli
     return {
       m, maxHp: c.def.hp * m * (1 + hp), ad: c.def.ad * m * (1 + dmg) * dm, ap: m * (1 + dmg + b.ap) * dm,
-      range: c.def.range + range, as: c.def.as * asMul, speed, cdr: Math.min(0.4, cdr), armor: Math.min(0.45, b.armor), regen: b.regen,
+      range: c.def.range + range, as: c.def.as * asMul, speed, cdr: Math.min(0.4, cdr), armor: Math.min(0.45, b.armor), regen: b.regen, income: b.income, discount: Math.min(0.3, b.discount),
     };
   }
 
@@ -257,9 +257,9 @@ const Game = (() => {
         const dir = TEAMS[team].dir;
         const up = S.teams[team].up;
         const an = S.obj.top.ctrl === team ? 1.25 : 1;
-        const n = Math.min(7, 4 + Math.floor(S.t / 240)); // les vagues grossissent au fil de la campagne
+        const n = Math.min(7, 4 + Math.floor(S.t / 240)) + up.n; // les vagues grossissent ; les flyers recrutent
         for (let i = 0; i < n; i++) {
-          const ranged = i === 3 || i === 6;
+          const ranged = i === 3 || i === 6 || i === 9;
           const s0 = (team === 'gauche' ? 170 : L.len - 170) - dir * i * 46;
           const p = L.at(s0);
           const maxHp = (ranged ? 95 : 150) * growth * (1 + 0.2 * up.hp) * an;
@@ -302,17 +302,18 @@ const Game = (() => {
     const team = m.team;
     const mates = S.cands.filter((c) => c.team === team);
     const w = S.t >= CFG.secondTour ? 2 : 1; // second tour : bulletins doublés
+    const pm = 1 + 0.25 * S.teams[team].up.poll; // affiches : chaque bulletin pèse plus dans les sondages
     if (st.kind === 'bureau') {
       if (st.owner === team) {
         st.g = Math.min(CFG.bureauMax, st.g + 1);
       } else {
         st.g -= w;
-        for (const c of mates) gain(c, 0.1);
+        for (const c of mates) gain(c, 0.1 * pm);
         if (st.g <= 0) {
           const back = st.home === team;
           // un bureau repris par son camp d'origine ne retrouve que la moitié de ses bulletins
           st.owner = team; st.g = back ? Math.ceil(CFG.bureauMax / 2) : CFG.bureauMax; st.conquered = !back;
-          for (const c of mates) { gain(c, 1.6); c.dons += 80; }
+          for (const c of mates) { gain(c, 1.6 * pm); c.dons += 80; }
           addLog(`Bureau « ${st.name} » ${back ? 'repris' : 'conquis'} par la ${TEAMS[team].name.toLowerCase()}`, team);
           float(st.x, st.y - 50, back ? 'Bureau repris !' : 'Bureau conquis !', TEAMS[team].light, true);
         }
@@ -321,7 +322,7 @@ const Game = (() => {
       const full = team === 'gauche' ? st.gauge >= st.max : st.gauge <= -st.max;
       if (full) return;
       st.gauge = U.clamp(st.gauge + TEAMS[team].dir * w, -st.max, st.max);
-      for (const c of mates) { gain(c, 0.17); c.dons += 8; }
+      for (const c of mates) { gain(c, 0.17 * pm); c.dons += 8; }
       if (st.ctrl && Math.sign(st.gauge) !== TEAMS[st.ctrl].dir) {
         addLog(`${st.name} : la ${TEAMS[st.ctrl].name.toLowerCase()} perd la majorité`, TEAMS[st.ctrl].enemy);
         st.ctrl = null;
@@ -491,14 +492,15 @@ const Game = (() => {
   // prochain niveau d'un objet : de plus en plus cher, de plus en plus puissant
   function itemNext(c, id) {
     const it = ITEM_BY_ID[id];
+    const off = 1 - ((c.st && c.st.discount) || 0); // mesures d'économies : tout coûte moins cher
     if (it.team) {
       const lvl = S.teams[c.team].up[it.key];
-      return lvl >= 3 ? null : { lvl: lvl + 1, name: it.name, cost: it.cost * (lvl + 1), desc: it.desc };
+      return lvl >= 3 ? null : { lvl: lvl + 1, name: it.name, cost: Math.round(it.cost * (lvl + 1) * off), desc: it.desc };
     }
     const lvl = c.lv[id] || 0;
     if (lvl >= it.lv.length) return null;
     const L = it.lv[lvl];
-    return { lvl: lvl + 1, name: L.name, cost: L.cost, desc: it.fmt(L.v) };
+    return { lvl: lvl + 1, name: itemName(it, c.team, lvl + 1), cost: Math.round(L.cost * off), desc: it.fmt(L.v) };
   }
   function buy(c, id) {
     const it = ITEM_BY_ID[id];
@@ -545,7 +547,7 @@ const Game = (() => {
     // Sénat : élus locaux → parrainages et dons
     const sen = S.obj.bot.ctrl;
     for (const c of S.cands) {
-      c.dons += CFG.passiveDons * dt;
+      c.dons += (CFG.passiveDons + c.st.income) * dt;
       if (sen === c.team) { gain(c, 0.04 * dt); c.dons += 1.5 * dt; S.teams[c.team].parrainages += 0.25 * dt; }
     }
 
