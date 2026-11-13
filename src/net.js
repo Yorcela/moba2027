@@ -14,10 +14,12 @@ const Net = (() => {
   const FX_TYPES = ['ring', 'blast', 'heal', 'zone'];
   const TEAM = ['gauche', 'droite'];
 
+  // serveur public utilisé quand la page n'est pas servie par un serveur de jeu
+  // (GitHub Pages, fichier ouvert en local)
+  const PUBLIC_SERVER = 'wss://moba2027.onrender.com/ws';
   function defaultUrl() {
     if (typeof window !== 'undefined' && window.MOBA_SERVER) return window.MOBA_SERVER;
-    // GitHub Pages ne sert que des fichiers statiques : pas de serveur de jeu à cette adresse
-    if (/\.github\.io$/.test(location.hostname)) return '';
+    if (/\.github\.io$/.test(location.hostname) || location.protocol === 'file:') return PUBLIC_SERVER;
     if (location.protocol === 'http:' || location.protocol === 'https:') return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
     return 'ws://localhost:8080/ws';
   }
@@ -167,11 +169,11 @@ const Net = (() => {
     for (const s of B.p) {
       let p = M.proj.get(s[0]);
       if (!p) {
-        p = { id: s[0], kind: s[1] ? 'shot' : 'atk', team: TEAM[s[4]], word: s[5] || undefined, width: s[6], bureau: !!(s[7] & 1), small: !!(s[7] & 2), src: s[7] & 4 ? { kind: 'cand' } : { kind: 'other' } };
+        p = { id: s[0], kind: s[7] & 8 ? 'cat' : s[1] ? 'shot' : 'atk', team: TEAM[s[4]], word: s[5] || undefined, width: s[6], bureau: !!(s[7] & 1), small: !!(s[7] & 2), src: s[7] & 4 ? { kind: 'cand' } : { kind: 'other' } };
         M.proj.set(s[0], p);
       }
       const q = prevP.get(s[0]);
-      p.x = q ? lerp(q[2], s[2], k) : s[2]; p.y = q ? lerp(q[3], s[3], k) : s[3];
+      p.x = q ? lerp(q[2], s[2], k) : s[2]; p.y = q ? lerp(q[3], s[3], k) : s[3]; p.face = s[8] || 0;
       seenP.add(p.id); proj.push(p);
     }
     for (const id of M.proj.keys()) if (!seenP.has(id)) M.proj.delete(id);

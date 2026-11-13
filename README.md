@@ -46,7 +46,7 @@ Si la page du jeu est servie ailleurs que par le serveur (par exemple sur GitHub
 
 ### GitHub Pages
 
-Le workflow `.github/workflows/pages.yml` publie le jeu sur https://yorcela.github.io/moba2027/ à chaque push sur `main` (ou à la main depuis l’onglet *Actions*). Il copie seulement les fichiers statiques : `index.html`, `map.html`, `src/`, `assets/` et `docs/`. Le solo y fonctionne directement. Pour le jeu en ligne depuis cette page, il faut un serveur hébergé ailleurs, en `wss://` car la page est en HTTPS, dont on saisit l’adresse dans le champ **Serveur** (ou dans `window.MOBA_SERVER`).
+Le workflow `.github/workflows/pages.yml` publie le jeu sur https://yorcela.github.io/moba2027/ à chaque push sur `main` (ou à la main depuis l’onglet *Actions*). Il copie seulement les fichiers statiques : `index.html`, `map.html`, `src/`, `assets/` et `docs/`. Le solo y fonctionne directement. Pour le jeu en ligne, cette page se connecte par défaut au serveur public hébergé sur Render, **https://moba2027.onrender.com** (constante `PUBLIC_SERVER` dans `src/net.js`) : il n’y a rien à saisir. Ce serveur se met en veille après une quinzaine de minutes sans joueur ; la première connexion peut alors prendre environ une minute. On peut aussi y jouer directement à cette adresse, car le serveur sert aussi le jeu.
 
 ### Hébergement
 
