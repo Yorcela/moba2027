@@ -37,18 +37,12 @@ const Render = (() => {
     return false;
   }
 
-  function drawBase(g) {
-    g.fillStyle = COL.ground;
-    g.beginPath(); g.arc(0, 0, MAP.R, 0, Math.PI * 2); g.fill();
-    for (const s of MAP.sectors) {
-      g.fillStyle = SECTOR_TINT[s.side];
-      g.beginPath(); g.moveTo(0, 0);
-      g.arc(0, 0, MAP.R, -s.a1 * MAP.D2R, -s.a0 * MAP.D2R);
-      g.closePath(); g.fill();
-    }
-    // immeubles (pâtés de maisons)
+  let blocksCache = null;
+  function blockList() {
+    if (blocksCache) return blocksCache;
     const rnd = seeded(2027);
     const avoid = [...MAP.campDefs.map((c) => c[1]), MAP.objectives.mid, MAP.QG.gauche, MAP.QG.droite, MAP.objectives.top, MAP.objectives.bot];
+    const out = [];
     for (let x = -MAP.R; x < MAP.R; x += 74) {
       for (let y = -MAP.R; y < MAP.R; y += 74) {
         const cx = x + 37, cy = y + 37;
@@ -57,11 +51,44 @@ const Render = (() => {
         if (avoid.some((p) => Math.hypot(p.x - cx, p.y - cy) < 150)) continue;
         if (Math.hypot(cx, cy) < 280) continue;
         const w = 40 + rnd() * 24, h = 40 + rnd() * 24;
-        g.fillStyle = COL.block;
-        g.strokeStyle = COL.blockEdge; g.lineWidth = 2;
-        roundRect(g, cx - w / 2, cy - h / 2, w, h, 6); g.fill(); g.stroke();
-        if (rnd() < 0.12) { g.fillStyle = 'rgba(76,175,114,0.25)'; g.beginPath(); g.arc(cx, cy, 14, 0, Math.PI * 2); g.fill(); }
+        out.push({ x: cx, y: cy, w, h, park: rnd() < 0.12, hgt: 30 + rnd() * 80 });
       }
+    }
+    blocksCache = out;
+    return out;
+  }
+
+  // texture du sol pour la 3D (sans immeubles)
+  function makeGround(scale) {
+    const size = Math.ceil(MAP.R * 2 * scale) + 4;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    const g = cv.getContext('2d');
+    g.fillStyle = COL.void; g.fillRect(0, 0, size, size);
+    g.setTransform(scale, 0, 0, scale, size / 2, size / 2);
+    drawBase(g, false);
+    return { canvas: cv, worldSize: size / scale };
+  }
+
+  function drawBase(g, blocks = true) {
+    g.fillStyle = COL.ground;
+    g.beginPath(); g.arc(0, 0, MAP.R, 0, Math.PI * 2); g.fill();
+    for (const s of MAP.sectors) {
+      g.fillStyle = SECTOR_TINT[s.side];
+      g.beginPath(); g.moveTo(0, 0);
+      g.arc(0, 0, MAP.R, -s.a1 * MAP.D2R, -s.a0 * MAP.D2R);
+      g.closePath(); g.fill();
+    }
+    // immeubles (pâtés de maisons) — en 3D ils sont extrudés, ici seulement leur emprise
+    for (const b of blockList()) {
+      if (blocks) {
+        g.fillStyle = COL.block; g.strokeStyle = COL.blockEdge; g.lineWidth = 2;
+        roundRect(g, b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, 6); g.fill(); g.stroke();
+      } else {
+        g.fillStyle = 'rgba(0,0,0,0.18)';
+        roundRect(g, b.x - b.w / 2 - 4, b.y - b.h / 2 - 4, b.w + 8, b.h + 8, 6); g.fill();
+      }
+      if (b.park) { g.fillStyle = 'rgba(76,175,114,0.25)'; g.beginPath(); g.arc(b.x, b.y, 14, 0, Math.PI * 2); g.fill(); }
     }
     // boulevard circulaire
     g.strokeStyle = COL.ring; g.lineWidth = 120;
@@ -416,5 +443,5 @@ const Render = (() => {
     g.strokeRect(cam.x - W / 2 / cam.z, cam.y - H / 2 / cam.z, W / cam.z, H / cam.z);
   }
 
-  return { drawWorld, drawMinimap, buildStatic };
+  return { drawWorld, drawMinimap, buildStatic, makeGround, blockList, gaugeColor, seeded };
 })();

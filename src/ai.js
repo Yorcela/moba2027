@@ -62,6 +62,7 @@ const AI = (() => {
   }
 
   function useAbilities(S, c, foe, mode) {
+    if (Game.foeBot(c) && Math.random() > DIFFICULTY[CFG.difficulty].abil) return false;
     const abs = c.def.abilities;
     const hpR = c.hp / c.st.maxHp;
     for (const key of ['R', 'Q', 'W', 'E']) {
@@ -142,7 +143,7 @@ const AI = (() => {
     }
 
     if (c.ai.think > 0) return;
-    c.ai.think = 0.15;
+    c.ai.think = Game.foeBot(c) ? DIFFICULTY[CFG.difficulty].react : 0.15;
 
     // 3) combat contre un candidat
     if (foe) {

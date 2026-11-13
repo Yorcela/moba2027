@@ -35,6 +35,15 @@ const CFG = {
   startDons: 300,
   startI: 100,           // influence de départ (base du sondage)
   bureauRange: 360,
+  milDmgBonus: 1.8,      // les polémiques des candidats convertissent plus vite les militants
+  difficulty: 'facile',
+};
+
+// Difficulté : ne s'applique qu'aux candidats adverses pilotés par l'IA
+const DIFFICULTY = {
+  facile: { label: 'Facile', dmg: 0.65, react: 0.45, abil: 0.4 },
+  normal: { label: 'Normal', dmg: 0.85, react: 0.25, abil: 0.75 },
+  difficile: { label: 'Difficile', dmg: 1.0, react: 0.12, abil: 1 },
 };
 
 const LANE_BY_ROLE = { tribun: 'mid', tireur: 'bot', rempart: 'top' };

@@ -59,14 +59,25 @@ Les kits sont symétriques pour l’équilibre. Les rôles de rempart diffèrent
 
 ## Contrôles
 
-- **Clic** : se déplacer, attaquer, ou entrer dans un camp de jungle.
-- **Q W E R** : lancer un sort vers le curseur (**Maj** + touche pour viser d’abord).
+Le menu propose deux modes de contrôle et trois niveaux de difficulté (Facile par défaut). La difficulté n'affecte que les candidats adverses contrôlés par l'IA : leurs dégâts, leur réactivité et la fréquence de leurs sorts.
+
+| Action | Mode « Souris + flèches » | Mode « Clavier » |
+|---|---|---|
+| Se déplacer | clic ou flèches | ZQSD (WASD en QWERTY) ou flèches |
+| Sorts (vers la souris) | A Z E R en AZERTY (Q W E R en QWERTY) | 1 2 3 4 |
+| Attaquer | clic sur l'ennemi, ou automatique à l'arrêt | automatique à l'arrêt |
+
+Les deux modes partagent aussi ces commandes :
+- **Attaque automatique** : à l'arrêt, le candidat attaque l'ennemi le plus proche dans son cercle de portée (jaune). C'est la façon la plus simple de convertir les militants adverses.
+- **Clic sur une icône de sort** : lance le sort sur l'ennemi le plus proche.
+- **Maj + touche de sort** : vise d'abord, puis lance au clic.
 - **B** : retour au QG.
 - **P** : boutique.
-- **S** : stop.
 - **Espace** : caméra libre.
 - **Molette** : zoom.
 - **Échap** : pause.
+
+Quand votre candidat est mis KO par un scandale, un grand compte à rebours s'affiche au centre de l'écran jusqu'à son retour. Le délai de retour de chaque candidat apparaît aussi dans le sondage.
 
 ## Structure
 
@@ -77,8 +88,9 @@ src/data.js     réglages, candidats, objets
 src/map.js      géométrie de la carte (voies, bureaux, objectifs, camps)
 src/game.js     moteur de règles
 src/ai.js       IA des candidats non joueurs
-src/render.js   rendu canvas (carte, unités, mini-carte)
-src/ui.js       menu, HUD, contrôles, boucle de jeu
+src/render.js   rendu 2D (texture du sol, carte de map.html, mini-carte)
+src/render3d.js rendu 3D : ville, bâtiments, candidats caricaturés, militants
+src/ui.js       menu, HUD, contrôles souris / clavier, surcouche, boucle de jeu
 ```
 
 Tous les équilibrages se règlent dans `CFG` (`src/data.js`).

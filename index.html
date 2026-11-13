@@ -11,7 +11,23 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 14px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  canvas#game { position: fixed; inset: 0; display: block; cursor: crosshair; }
+  canvas#game3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; transition: filter .4s; }
+  canvas#game3d.dead { filter: grayscale(0.85) brightness(0.6); }
+  canvas#overlay { position: fixed; inset: 0; display: block; cursor: crosshair; }
+  #options { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin: -4px 0 16px; }
+  #options label { display: flex; gap: 8px; align-items: center; color: var(--mute); font-size: 13px; }
+  #options select { background: #1c232d; color: var(--text); border: 1px solid #3a4452; border-radius: 8px; padding: 6px 8px; font: inherit; }
+  #respawn { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; padding: 18px 30px; }
+  #respawn .rs-t { font: 900 34px system-ui; color: var(--gold); letter-spacing: .02em; }
+  #respawn .rs-s { color: var(--text); font-size: 15px; margin: 2px 0 8px; }
+  #rs-count { display: block; font: 900 92px/1 system-ui; color: #fff; text-shadow: 0 4px 30px rgba(0,0,0,.6); }
+  .rs-track { width: 320px; height: 10px; background: #0d1116; border-radius: 6px; overflow: hidden; margin: 10px auto 0; }
+  #rs-bar { height: 100%; background: linear-gradient(90deg, var(--gold), #ffe9a3); }
+  #tips { position: fixed; left: 50%; top: 92px; transform: translateX(-50%); max-width: 560px; padding: 10px 36px 10px 14px; font-size: 13.5px; border-color: rgba(255,211,77,.5); }
+  #tips b { color: var(--gold); }
+  #tips-close { position: absolute; top: 6px; right: 8px; background: none; border: 0; color: var(--mute); font-size: 16px; }
+  .poll-row em { color: var(--gold); font-style: normal; font-weight: 600; font-size: 11px; }
+  .ab { cursor: pointer; color: inherit; font: inherit; text-align: left; }
   .hidden { display: none !important; }
   button { font: inherit; color: inherit; cursor: pointer; }
 
@@ -126,24 +142,23 @@
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
+<canvas id="game3d"></canvas>
+<canvas id="overlay"></canvas>
 
 <div id="menu">
   <div class="menu-box">
     <h1>Campagne <span class="r">20</span><span class="b">27</span></h1>
     <div class="tag">MOBA 3 contre 3 · gauche contre droite · le premier camp qui conquiert l’Élysée gagne</div>
     <div class="rules">
-      <div class="rule"><b>🗳️ Militants & bureaux</b><span>Vos militants partent du QG et vont déposer leurs bulletins. 6 bulletins conquièrent un bureau adverse. Quand tous les bureaux d’une voie sont à vous, ils votent à l’objectif.</span></div>
-      <div class="rule"><b>🏛️ Objectifs</b><span>Assemblée : militants +25 %. Sénat : parrainages et dons en continu. Élysée : 24 bulletins = victoire.</span></div>
+      <div class="rule"><b>🗳️ Militants & bureaux</b><span>Vos militants partent du QG et vont déposer leurs bulletins. 6 bulletins conquièrent définitivement un bureau adverse. Quand tous les bureaux adverses d’une voie sont à vous, ils votent à l’objectif.</span></div>
+      <div class="rule"><b>🏛️ Objectifs</b><span>Assemblée (10) : militants +25 %. Sénat (10) : parrainages et dons en continu. Élysée : 16 bulletins = victoire. Second tour à 15:00 : bulletins doublés.</span></div>
       <div class="rule"><b>📊 Sondage</b><span>Votre puissance dépend de votre score dans le sondage. Les polémiques font baisser l’adversaire. Le meilleur sondage du camp gagnant est élu.</span></div>
       <div class="rule"><b>🏘️ Jungle</b><span>Mairies : parrainages, de plus en plus à chaque passage. Meetings : dons. Attention : 10 s d’immobilisation.</span></div>
     </div>
+    <div id="options"></div>
     <div id="pick-teams"></div>
     <div id="pick-cands"></div>
-    <div class="keys">
-      <kbd>Clic</kbd> se déplacer / attaquer / entrer dans un camp · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> sorts vers le curseur (<kbd>Maj</kbd>+touche pour viser) ·
-      <kbd>B</kbd> retour au QG · <kbd>P</kbd> boutique · <kbd>S</kbd> stop · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause
-    </div>
+    <div class="keys" id="keys-help"></div>
   </div>
 </div>
 
@@ -176,6 +191,14 @@
     </div>
   </div>
   <div id="help" class="panel">Convertissez les militants adverses avant qu’ils ne votent. Les bureaux de vote adverses vous tirent dessus : avancez derrière vos militants.</div>
+  <div id="tips" class="panel hidden"><span id="tips-text"></span><button id="tips-close" title="Masquer les astuces">✕</button></div>
+  <div id="respawn" class="panel hidden">
+    <div class="rs-t">Scandale !</div>
+    <div class="rs-s">Retour au QG le temps que la polémique retombe. De nouveau sur le terrain dans</div>
+    <span id="rs-count">0</span>
+    <div class="rs-track"><div id="rs-bar"></div></div>
+    <div class="rs-s" style="margin-top:8px">Profitez-en pour faire vos achats (<b>P</b>)</div>
+  </div>
 </div>
 
 <div id="shop" class="hidden">
@@ -199,11 +222,13 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="src/data.js"></script>
 <script src="src/map.js"></script>
 <script src="src/game.js"></script>
 <script src="src/ai.js"></script>
 <script src="src/render.js"></script>
+<script src="src/render3d.js"></script>
 <script src="src/ui.js"></script>
 </body>
 </html>

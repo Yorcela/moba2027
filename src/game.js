@@ -59,7 +59,9 @@ const Game = (() => {
     for (const x of S.cands) tot += x.I;
     return c.I / tot;
   }
-  function power(c) { return U.clamp(1 + 1.8 * (share(c) - 1 / 6), 0.7, 1.7); }
+  function power(c) { return U.clamp(1 + 1.2 * (share(c) - 1 / 6), 0.8, 1.45); }
+  // candidats adverses pilotés par l'IA : affaiblis selon la difficulté
+  function foeBot(c) { return S.player && !c.isPlayer && c.team !== S.player.team; }
 
   function stats(c) {
     let dmg = 0, hp = 0, spd = 0, range = 0, as = 0, cdr = 0;
@@ -76,8 +78,9 @@ const Game = (() => {
       if (b.as) asMul += b.as;
     }
     if (c.slowUntil > S.t) speed *= 1 - c.slowPct;
+    const dm = foeBot(c) ? DIFFICULTY[CFG.difficulty].dmg : 1;
     return {
-      m, maxHp: c.def.hp * m * (1 + hp), ad: c.def.ad * m * (1 + dmg), ap: m * (1 + dmg),
+      m, maxHp: c.def.hp * m * (1 + hp), ad: c.def.ad * m * (1 + dmg) * dm, ap: m * (1 + dmg) * dm,
       range: c.def.range + range, as: c.def.as * asMul, speed, cdr: Math.min(0.4, cdr),
     };
   }
@@ -105,14 +108,14 @@ const Game = (() => {
         tgt.hitBy[src.id] = S.t;
         src.lastAttackedCandAt = S.t;
         // chaque polémique fait baisser la cible dans les sondages au profit de l'attaquant
-        const tr = Math.min(Math.max(0, tgt.I - 20), amt * 0.015);
+        const tr = Math.min(Math.max(0, tgt.I - 20), amt * 0.008);
         tgt.I -= tr; src.I += tr;
       }
       if (tgt.channel && tgt.channel.type === 'recall') tgt.channel = null;
       if (tgt.hp <= 0) koCand(tgt, src);
     } else if (tgt.kind === 'mil') {
       if (tgt.converted) return;
-      tgt.hp -= amt;
+      tgt.hp -= src && src.kind === 'cand' ? amt * CFG.milDmgBonus : amt;
       if (tgt.hp <= 0) convert(tgt, src);
     }
   }
@@ -120,8 +123,9 @@ const Game = (() => {
   function koCand(c, src) {
     c.dead = true; c.deaths++; c.hp = 0; c.channel = null; c.dash = null; c.target = null; c.moveTo = null; c.campTarget = null;
     if (c.busyCamp) { c.busyCamp.busy = null; c.busyCamp = null; }
-    c.respawnAt = S.t + 6 + (S.t / 60) * 0.7;
-    const loss = Math.max(0, c.I - 20) * 0.22;
+    c.respawnAt = S.t + 5 + (S.t / 60) * 0.5;
+    c.diedAt = S.t;
+    const loss = Math.max(0, c.I - 20) * 0.12;
     c.I -= loss;
     let killer = src && src.kind === 'cand' ? src : null;
     const enemies = S.cands.filter((e) => e.team !== c.team);
@@ -487,6 +491,15 @@ const Game = (() => {
       } else { moveToward(c, camp.x, camp.y, c.st.speed, dt); return; }
     }
 
+    // Attaque automatique du joueur à l'arrêt : cible la plus proche à portée
+    if (c.isPlayer && !c.target && !c.moveTo && !c.campTarget) {
+      let best = null, bd = Infinity;
+      const enemy = TEAMS[c.team].enemy;
+      for (const e of S.cands) if (e.team === enemy && !e.dead) { const d = U.dist(c, e) - e.r; if (d <= c.st.range && d < bd) { bd = d; best = e; } }
+      for (const m of S.mil) if (m.team === enemy && !m.converted) { const d = U.dist(c, m) - m.r; if (d <= c.st.range && d < bd) { bd = d; best = m; } }
+      if (best) { c.target = best; c.autoTarget = true; }
+    }
+
     // Attaque
     const tg = c.target;
     if (tg) {
@@ -498,9 +511,12 @@ const Game = (() => {
           if (c.atkCd <= 0) {
             S.proj.push({ kind: 'atk', src: c, team: c.team, x: c.x, y: c.y, target: tg, speed: 1100, dmg: c.st.ad });
             c.atkCd = 1 / c.st.as;
+            c.lastAtkAt = S.t; c.face = Math.atan2(tg.y - c.y, tg.x - c.x);
           }
           return;
         }
+        // une cible automatique hors de portée est abandonnée (on ne poursuit pas)
+        if (c.autoTarget) { c.target = null; c.autoTarget = false; return; }
         moveToward(c, tg.x, tg.y, c.st.speed, dt);
         return;
       }
@@ -637,7 +653,7 @@ const Game = (() => {
         for (const c of S.cands) if (c.team === enemy && !c.dead) { const d = U.dist(b, c); if (d < bd) { bd = d; tgt = c; } }
       }
       if (tgt) {
-        const dmg = tgt.kind === 'cand' ? 85 + 6 * min : 40;
+        const dmg = (tgt.isPlayer ? 60 : 80) + 4 * min;
         S.proj.push({ kind: 'atk', src: b, team: b.owner, x: b.x, y: b.y - 20, target: tgt, speed: 900, dmg, bureau: true });
         b.atkCd = 1.25;
       }
@@ -698,6 +714,7 @@ const Game = (() => {
 
   return {
     newGame, update, cast, buy, recall, share, power, stats, canAct, campAvailable, inOwnQG, laneOwnedBy, station,
+    foeBot,
     get S() { return S; },
   };
 })();
