@@ -60,7 +60,7 @@
       </label>
       <label>Contrôles
         <select id="opt-ctl">
-          <option value="mixte"${prefs.controls === 'mixte' ? ' selected' : ''}>Souris + flèches · sorts ${keyLabel.KeyQ} ${keyLabel.KeyW} ${keyLabel.KeyE} ${keyLabel.KeyR}</option>
+          <option value="mixte"${prefs.controls === 'mixte' ? ' selected' : ''}>Flèches (ou souris) · sorts ${keyLabel.KeyQ} ${keyLabel.KeyW} ${keyLabel.KeyE} ${keyLabel.KeyR}</option>
           <option value="clavier"${prefs.controls === 'clavier' ? ' selected' : ''}>Clavier ${moveKeysLabel()} · sorts 1 2 3 4</option>
         </select>
       </label>`;
@@ -87,16 +87,20 @@
     }
   }
   function spellKey(k, i) { return prefs.controls === 'clavier' ? String(i + 1) : keyLabel['Key' + k]; }
+  function syncKeyLabels() { ['Q', 'W', 'E', 'R'].forEach((k, i) => { KEY_LABEL[k] = spellKey(k, i); }); }
   function controlsHelp() {
     const base = prefs.controls === 'clavier'
-      ? `<kbd>${moveKeysLabel()}</kbd> ou <kbd>flèches</kbd> se déplacer · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> sorts vers la souris`
-      : `<kbd>Clic</kbd> se déplacer / attaquer · <kbd>flèches</kbd> se déplacer · <kbd>${keyLabel.KeyQ}</kbd><kbd>${keyLabel.KeyW}</kbd><kbd>${keyLabel.KeyE}</kbd><kbd>${keyLabel.KeyR}</kbd> sorts vers la souris`;
-    return `${base} · à l’arrêt, attaque <b>automatique</b> de l’ennemi le plus proche · <kbd>Clic</kbd> sur un camp pour l’exploiter ·
-      <kbd>B</kbd> retour au QG · <kbd>P</kbd> boutique · <kbd>Espace</kbd> caméra libre · <kbd>Molette</kbd> zoom · <kbd>Échap</kbd> pause`;
+      ? `<kbd>${moveKeysLabel()}</kbd> ou <kbd>flèches</kbd> se déplacer · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> sorts`
+      : `<kbd>flèches</kbd> (ou clic) se déplacer · <kbd>${keyLabel.KeyQ}</kbd><kbd>${keyLabel.KeyW}</kbd><kbd>${keyLabel.KeyE}</kbd><kbd>${keyLabel.KeyR}</kbd> sorts`;
+    return `${base} · les attaques partent <b>toutes seules</b> sur l’ennemi à portée, et les sorts visent <b>automatiquement</b> ·
+      sorts débloqués à ${CFG.unlock.Q} / ${CFG.unlock.W} / ${CFG.unlock.E} / ${CFG.unlock.R} % dans les sondages ·
+      <kbd>Tab</kbd> verrouiller un candidat · <kbd>Entrée</kbd> récolter le camp le plus proche · <kbd>B</kbd> retour au QG ·
+      <kbd>P</kbd> boutique (<kbd>1</kbd>…<kbd>9</kbd> pour acheter) · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause · <kbd>Maj</kbd>+sort : viser à la souris`;
   }
   renderMenu();
 
   function start(candId) {
+    syncKeyLabels();
     Game.newGame(candId);
     const p = Game.S.player;
     cam.x = p.x; cam.y = p.y; cam.locked = true;
@@ -121,7 +125,7 @@
       el.className = 'ab';
       el.id = 'ab-' + k;
       el.title = `${ab.name} — ${ab.desc} (recharge ${ab.cd} s)`;
-      el.innerHTML = `<span class="key">${spellKey(k, i)}</span><span class="abn">${ab.name}</span><span class="cdv"></span><div class="cdo"></div>`;
+      el.innerHTML = `<span class="key">${spellKey(k, i)}</span><span class="abn">${ab.name}</span><span class="cdv"></span><div class="cdo"></div><span class="lock">🔒 ${CFG.unlock[k]} %</span>`;
       el.onclick = () => castAuto(k);
       bar.appendChild(el);
     });
@@ -129,32 +133,63 @@
     $('#me-avatar').className = 'avatar ' + p.team;
     $('#me-name').textContent = p.def.name;
   }
-  // sans souris sur la carte (ou clic sur l'icône) : vise l'ennemi le plus proche
+  // visée automatique : cible verrouillée, sinon candidat adverse le plus proche, sinon militant
+  function nearest(list, p, maxD) {
+    let best = null, bd = maxD;
+    for (const e of list) { if (e.team === p.team || !Game.alive(e)) continue; const d = U.dist(p, e); if (d < bd) { bd = d; best = e; } }
+    return best;
+  }
   function castAuto(k) {
     const S = Game.S, p = S.player;
-    let best = null, bd = 1100;
-    for (const e of S.cands) if (e.team !== p.team && !e.dead) { const d = U.dist(p, e); if (d < bd) { bd = d; best = e; } }
-    if (!best) for (const m of S.mil) if (m.team !== p.team && !m.converted) { const d = U.dist(p, m); if (d < bd) { bd = d; best = m; } }
-    const t = best || mouseWorld();
-    tryCast(k, t.x, t.y);
+    const ab = p.def.abilities[k];
+    if (['nova', 'shield', 'haste'].includes(ab.type)) return tryCast(k, p.x, p.y);
+    if (ab.type === 'heal') {
+      let hurt = p, low = p.hp / p.st.maxHp;
+      for (const a of S.cands) if (a.team === p.team && !a.dead && U.dist(a, p) < ab.range && a.hp / a.st.maxHp < low) { low = a.hp / a.st.maxHp; hurt = a; }
+      return tryCast(k, hurt.x, hurt.y);
+    }
+    const reach = (ab.range || 600) + 150;
+    const locked = p.target && Game.alive(p.target) && U.dist(p, p.target) < reach ? p.target : null;
+    const t = locked || nearest(S.cands, p, reach) || nearest(S.mil, p, reach);
+    if (ab.type === 'dash') {
+      const kd = keyDir();
+      if (kd) return tryCast(k, p.x + kd.x * ab.range, p.y + kd.y * ab.range);
+      if (t) return tryCast(k, t.x, t.y);
+      const f = p.face || 0;
+      return tryCast(k, p.x + Math.cos(f) * ab.range, p.y + Math.sin(f) * ab.range);
+    }
+    if (!t) { if (Game.unlocked(p, k)) toast('Aucune cible à portée'); else tryCast(k, p.x, p.y); return; }
+    let tx = t.x, ty = t.y;
+    if (ab.type === 'skillshot' && t.kind === 'cand' && t.moveTo) {
+      const n = U.norm(t.moveTo.x - t.x, t.moveTo.y - t.y), lead = (U.dist(p, t) / ab.speed) * t.st.speed * 0.7;
+      tx += n.x * lead; ty += n.y * lead;
+    }
+    tryCast(k, tx, ty);
   }
   function tryCast(k, x, y) {
     const p = Game.S.player;
-    if (!Game.cast(p, k, x, y) && p.cd[k] > 0) toast(`${p.def.abilities[k].name} : encore ${p.cd[k].toFixed(1)} s`);
+    if (Game.cast(p, k, x, y)) return;
+    if (!Game.unlocked(p, k)) toast(`${p.def.abilities[k].name} se débloque à ${CFG.unlock[k]} % dans les sondages (vous : ${p.I.toFixed(1)} %)`);
+    else if (p.cd[k] > 0) toast(`${p.def.abilities[k].name} : encore ${p.cd[k].toFixed(1)} s`);
   }
 
   // ── Boutique ──
   function buildShop() {
     const list = $('#shop-list');
     list.innerHTML = '';
-    for (const it of ITEMS) {
+    ITEMS.forEach((it, i) => {
       const b = document.createElement('button');
       b.className = 'shop-item' + (it.team ? ' team' : '');
       b.dataset.id = it.id;
-      b.innerHTML = `<span class="ic">${it.icon}</span><span class="nm">${it.name}</span><span class="ds">${it.desc}</span><span class="pr">${it.cost} €</span><span class="lv"></span>`;
-      b.onclick = () => { const err = Game.buy(Game.S.player, it.id); toast(err || `${it.name} : acheté`); refreshShop(); };
+      b.innerHTML = `<span class="num">${i + 1}</span><span class="ic">${it.icon}</span><span class="nm">${it.name}</span><span class="ds">${it.desc}</span><span class="pr">${it.cost} €</span><span class="lv"></span>`;
+      b.onclick = () => buyItem(it);
       list.appendChild(b);
-    }
+    });
+  }
+  function buyItem(it) {
+    const err = Game.buy(Game.S.player, it.id);
+    toast(err || `${it.name} : acheté`);
+    refreshShop();
   }
   function refreshShop() {
     const S = Game.S, p = S.player;
@@ -192,7 +227,7 @@
     const p = Game.S.player;
     const w = mouseWorld();
     if (aimKey) { tryCast(aimKey, w.x, w.y); aimKey = null; return; }
-    if (p.dead || !Game.canAct(p)) return;
+    if (p.dead || p.dash || p.stunUntil > Game.S.t) return;
     order(p, w);
     clickFx = { x: w.x, y: w.y, t: performance.now() };
   });
@@ -219,6 +254,21 @@
     p.moveTo = w; p.target = null; p.campTarget = null;
   }
 
+  function activateCamp(p) {
+    const S = Game.S;
+    let best = null, bd = 420;
+    for (const camp of S.camps) { const d = U.dist(camp, p); if (d < bd) { bd = d; best = camp; } }
+    if (!best) { toast('Aucune mairie ni aucun meeting à proximité'); return; }
+    if (!Game.campAvailable(best)) { toast(`${best.name} : pas disponible pour l’instant`); return; }
+    p.campTarget = best; p.target = null; p.moveTo = null;
+  }
+  function lockNearest(p) {
+    const t = nearest(Game.S.cands, p, 1000);
+    if (!t) { p.target = null; toast('Aucun candidat adverse à proximité'); return; }
+    p.target = t; p.autoTarget = true; // prioritaire pour les attaques et les sorts, sans le poursuivre
+    toast(`Cible : ${t.def.name}`);
+  }
+
   // ── Clavier ──
   const MOVE = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
   const MOVE_WASD = { KeyW: [0, -1], KeyS: [0, 1], KeyA: [-1, 0], KeyD: [1, 0] }; // = ZQSD sur AZERTY
@@ -238,6 +288,9 @@
     if (paused) return;
     const clavier = prefs.controls === 'clavier';
     if (MOVE[code] || (clavier && MOVE_WASD[code])) { keys.add(code); e.preventDefault(); return; }
+    if (shopOpen && /^(Digit|Numpad)[1-9]$/.test(code)) { const it = ITEMS[+code.slice(-1) - 1]; if (it) buyItem(it); e.preventDefault(); return; }
+    if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); if (!p.dead) activateCamp(p); return; }
+    if (code === 'Tab') { e.preventDefault(); if (!p.dead) lockNearest(p); return; }
     const spellByCode = clavier
       ? { Digit1: 'Q', Digit2: 'W', Digit3: 'E', Digit4: 'R', Numpad1: 'Q', Numpad2: 'W', Numpad3: 'E', Numpad4: 'R' }
       : { KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', Digit1: 'Q', Digit2: 'W', Digit3: 'E', Digit4: 'R' };
@@ -246,28 +299,35 @@
       e.preventDefault();
       if (e.repeat) return;
       if (e.shiftKey) { aimKey = k; return; }
-      if (mouse.inside) { const w = mouseWorld(); tryCast(k, w.x, w.y); } else castAuto(k);
+      castAuto(k);
       return;
     }
     if (code === 'KeyB') Game.recall(p);
     else if (code === 'KeyP') toggleShop();
     else if (code === 'Space') { cam.locked = !cam.locked; toast(cam.locked ? 'Caméra verrouillée' : 'Caméra libre (bords de l’écran)'); e.preventDefault(); }
     else if (code === 'KeyS' && !clavier) { p.moveTo = null; p.target = null; p.campTarget = null; }
+    else if (code === 'KeyX') { p.target = null; toast('Cible libérée'); }
   });
 
-  function keyboardMove() {
-    const p = Game.S.player;
+  function keyDir() {
     let dx = 0, dy = 0;
     for (const c of keys) { const v = MOVE[c] || (prefs.controls === 'clavier' && MOVE_WASD[c]); if (v) { dx += v[0]; dy += v[1]; } }
-    if (dx || dy) {
-      if (!Game.canAct(p)) return;
-      const n = U.norm(dx, dy);
+    return dx || dy ? U.norm(dx, dy) : null;
+  }
+  function keyboardMove() {
+    const S = Game.S, p = S.player;
+    const n = keyDir();
+    if (n) {
+      // bouger pendant une récolte ou un retour au QG l'annule
+      if (p.dead || p.dash || p.stunUntil > S.t || S.over) return;
       p.moveTo = { x: p.x + n.x * 90, y: p.y + n.y * 90 };
-      p.target = null; p.autoTarget = false; p.campTarget = null;
+      p.face = Math.atan2(n.y, n.x);
+      if (p.target && !p.autoTarget) p.target = null; // on garde une cible verrouillée par Tab
+      p.campTarget = null;
       kbMoving = true;
     } else if (kbMoving) {
       kbMoving = false;
-      p.moveTo = null; // à l'arrêt : l'attaque automatique prend le relais
+      p.moveTo = null;
     }
   }
 
@@ -283,13 +343,14 @@
 
   // ── HUD ──
   function pollRows(S) {
+    const und = Game.undecided();
     return [...S.cands].sort((a, b) => b.I - a.I).map((c) => {
       const pc = Game.share(c) * 100;
       return `<div class="poll-row${c.isPlayer ? ' me' : ''}${c.dead ? ' dead' : ''}">
         <span class="pn">${c.def.name}${c.dead && !S.over ? ` <em>· retour ${Math.ceil(c.respawnAt - S.t)} s</em>` : ''}</span><span class="pv">${pc.toFixed(1)} %</span>
-        <div class="pb"><div style="width:${Math.min(100, pc * 2.2)}%;background:${TEAMS[c.team].color}"></div></div>
+        <div class="pb"><div style="width:${Math.min(100, pc * 2.5)}%;background:${TEAMS[c.team].color}"></div></div>
         <span class="pk">${c.kills} KO · ${c.deaths} scandales · ${c.conv} conv.</span></div>`;
-    }).join('');
+    }).join('') + `<div class="poll-row und"><span class="pn">Indécis</span><span class="pv">${und.toFixed(1)} %</span></div>`;
   }
 
   function updateHUD() {
@@ -310,17 +371,20 @@
     $('#me-hp').style.width = U.clamp(p.hp / p.st.maxHp, 0, 1) * 100 + '%';
     $('#me-hpt').textContent = p.dead ? `Retour dans ${Math.ceil(p.respawnAt - S.t)} s` : `Crédibilité ${Math.ceil(p.hp)} / ${Math.ceil(p.st.maxHp)}`;
     $('#me-dons').textContent = Math.floor(p.dons) + ' €';
-    $('#me-poll').textContent = (Game.share(p) * 100).toFixed(1) + ' % · puissance ×' + p.st.m.toFixed(2);
+    const nextK = ['Q', 'W', 'E', 'R'].find((k) => !Game.unlocked(p, k));
+    $('#me-poll').textContent = p.I.toFixed(1) + ' % · puissance ×' + p.st.m.toFixed(2)
+      + (nextK ? ` · ${KEY_LABEL[nextK]} à ${CFG.unlock[nextK]} %` : ' · tous les sorts débloqués');
     $('#me-items').innerHTML = Array.from({ length: 6 }, (_, i) => {
       const id = p.items[i];
       return `<span class="slot" title="${id ? ITEM_BY_ID[id].name + ' — ' + ITEM_BY_ID[id].desc : 'vide'}">${id ? ITEM_BY_ID[id].icon : ''}</span>`;
     }).join('');
     const e = p.def.fem ? 'e' : '';
     let status = '';
-    if (p.channel && p.channel.type === 'camp') status = `${p.channel.camp.name} : immobilisé${e} encore ${Math.ceil(p.channel.until - S.t)} s`;
+    if (p.channel && p.channel.type === 'camp') status = `${p.channel.camp.name} : restez immobile encore ${Math.ceil(p.channel.until - S.t)} s (bouger annule)`;
     else if (p.channel) status = `Retour au QG dans ${Math.ceil(p.channel.until - S.t)} s`;
     else if (p.stunUntil > S.t) status = `Étourdi${e}`;
-    else if (p.target && !p.dead) status = p.target.kind === 'mil' ? 'Conversion d’un militant…' : `Polémique contre ${p.target.def.name}`;
+    else if (p.target && p.target.kind === 'cand' && !p.dead) status = `Cible : ${p.target.def.name} (X pour libérer)`;
+    else if (p.lastShot && S.t - (p.lastAtkAt || -9) < 1.5 && !p.dead) status = p.lastShot.kind === 'mil' ? 'Conversion d’un militant…' : `Polémique contre ${p.lastShot.def.name}`;
     $('#me-status').textContent = status;
     for (const k of ['Q', 'W', 'E', 'R']) {
       const el = $('#ab-' + k);
@@ -329,6 +393,7 @@
       el.querySelector('.cdo').style.height = (cd > 0 ? (cd / max) * 100 : 0) + '%';
       el.querySelector('.cdv').textContent = cd > 0 ? Math.ceil(cd) : '';
       el.classList.toggle('aim', aimKey === k);
+      el.classList.toggle('locked', !Game.unlocked(p, k));
     }
     $('#log').innerHTML = S.log.slice().reverse().map((l) =>
       `<div class="ll" style="border-color:${l.team ? TEAMS[l.team].color : '#888'}"><span>${U.fmtTime(l.t)}</span> ${l.text}</div>`).join('');
@@ -357,8 +422,8 @@
     const enemyMil = S.mil.some((m) => m.team !== p.team && !m.converted && U.dist(m, p) < 900);
     let tip;
     if (S.t < 12) tip = `Votre QG est à ${p.team === 'gauche' ? 'l’ouest' : 'l’est'}. Votre voie : <b>${LANE_NAMES[p.lane]}</b>. Avancez <b>derrière vos militants</b>.`;
-    else if (enemyMil) tip = `Militants adverses en vue ! <b>Cliquez dessus</b> ou <b>arrêtez-vous à portée</b> (cercle jaune) : vous les attaquez automatiquement. Chaque militant converti rapporte des dons et du sondage.`;
-    else tip = 'Vos militants vont voter dans les bureaux adverses. Les bureaux adverses tirent sur <b>vous</b> (cercle rouge), pas sur les militants : restez derrière eux. Mairies et meetings : clic pour récolter (10 s immobile).';
+    else if (enemyMil) tip = `Militants adverses en vue ! Approchez-vous : dès qu’ils sont dans votre cercle jaune, vos <b>polémiques partent toutes seules</b>. Chaque conversion vous fait monter dans les sondages : <b>${KEY_LABEL.Q}</b> se débloque à ${CFG.unlock.Q} %.`;
+    else tip = `Les bureaux adverses tirent sur <b>vous</b> (cercle rouge), pas sur les militants : restez derrière eux. Près d’une mairie ou d’un meeting, <b>Entrée</b> pour récolter : ${CFG.campChannelOwn} s immobile de votre côté, ${CFG.campChannelFoe} s chez l’adversaire.`;
     $('#tips-text').innerHTML = tip;
   }
   $('#tips-close').onclick = () => { tipsDone = true; $('#tips').classList.add('hidden'); };
@@ -430,9 +495,14 @@
       let txt, col;
       if (S.t < c.availableAt) { txt = `${c.type === 'mairie' ? 'Mairie' : 'Meeting'} · ${Math.ceil(c.availableAt - S.t)} s`; col = '#9aa4b1'; }
       else if (c.busy) { txt = 'occupé'; col = '#ffd34d'; }
-      else if (c.type === 'mairie') { txt = `+${Math.round(12 * (1 + 0.35 * c.h[p.team]))} parrainages`; col = '#9be28f'; }
-      else { txt = `+${Math.round(90 + 25 * c.h[p.team])} € de dons`; col = '#ffd34d'; }
+      else if (c.type === 'mairie') { txt = `+${Math.round(12 * (1 + 0.35 * c.h[p.team]))} parrainages · ${Game.campDuration(p, c)} s`; col = '#9be28f'; }
+      else { txt = `+${Math.round(90 + 25 * c.h[p.team])} € de dons · ${Game.campDuration(p, c)} s`; col = '#ffd34d'; }
       g.strokeText(txt, q.x, q.y); g.fillStyle = col; g.fillText(txt, q.x, q.y);
+      if (!p.dead && !p.channel && Game.campAvailable(c) && U.dist(c, p) < 420) {
+        const q2 = P(c.x, c.y, 60);
+        g.font = `800 ${Math.round(13 * scale)}px system-ui`;
+        g.strokeText('Entrée : récolter', q2.x, q2.y + 16); g.fillStyle = '#fff'; g.fillText('Entrée : récolter', q2.x, q2.y + 16);
+      }
     }
     for (const m of S.mil) {
       if (m.converted || m.hp >= m.maxHp) continue;
@@ -450,7 +520,7 @@
       g.fillRect(x, y, w * U.clamp(c.hp / c.st.maxHp, 0, 1), 7);
       if (c.shield > 0 && c.shieldUntil > S.t) { const sw = Math.min(w, (w * c.shield) / c.st.maxHp); g.fillStyle = 'rgba(255,255,255,0.85)'; g.fillRect(x + w - sw, y, sw, 7); }
       g.font = '800 13px system-ui'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.8)';
-      const pct = (Game.share(c) * 100).toFixed(1) + ' %';
+      const pct = c.I.toFixed(1) + ' %';
       g.strokeText(pct, q.x, y - 10); g.fillStyle = TEAMS[c.team].light; g.fillText(pct, q.x, y - 10);
       g.font = '600 12px system-ui';
       g.strokeText(c.def.name, q.x, y + 18); g.fillStyle = c.isPlayer ? '#ffd34d' : '#fff'; g.fillText(c.def.name, q.x, y + 18);

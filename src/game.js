@@ -49,17 +49,43 @@ const Game = (() => {
       cd: { Q: 0, W: 0, E: 0, R: 0 }, atkCd: 0, shield: 0, shieldUntil: 0, buffs: [], slowUntil: 0, slowPct: 0, stunUntil: 0,
       moveTo: null, target: null, campTarget: null, channel: null, dash: null, hitBy: {}, lastAttackedCandAt: -99,
       lane: LANE_BY_ROLE[def.role], ai: { think: 0, nextJungle: U.rand(45, 80), off: U.rand(-60, 60) },
-      kills: 0, deaths: 0, conv: 0, isPlayer: false,
+      kills: 0, deaths: 0, conv: 0, isPlayer: false, unl: {},
     };
   }
 
-  // ── Sondage : part d'influence de chaque candidat, normalisée à 100 % ──
-  function share(c) {
-    let tot = 0;
-    for (const x of S.cands) tot += x.I;
-    return c.I / tot;
+  // ── Sondage : intentions de vote en %, tout le monde part de 0 ──
+  // les gains viennent des indécis (100 % − somme des candidats) ; les polémiques et scandales
+  // transfèrent des points d'un candidat à l'autre.
+  function share(c) { return c.I / 100; }
+  function undecided() { let tot = 0; for (const x of S.cands) tot += x.I; return Math.max(0, 100 - tot); }
+  function gain(c, x) {
+    if (x <= 0) return 0;
+    const u = undecided();
+    const amt = Math.min(u, x * CFG.pollGain * Math.max(0.25, u / 100));
+    c.I += amt;
+    checkUnlock(c);
+    return amt;
   }
-  function power(c) { return U.clamp(1 + 1.2 * (share(c) - 1 / 6), 0.8, 1.45); }
+  function transfer(from, to, x) {
+    const amt = Math.min(from.I, x);
+    from.I -= amt;
+    if (to) { to.I += amt; checkUnlock(to); }
+    else for (const e of S.cands) if (e.team !== from.team) { e.I += amt / 3; checkUnlock(e); }
+    return amt;
+  }
+  // un sort débloqué le reste, même si le candidat redescend ensuite dans les sondages
+  function checkUnlock(c) {
+    for (const k of ['Q', 'W', 'E', 'R']) {
+      if (!c.unl[k] && c.I >= CFG.unlock[k]) {
+        c.unl[k] = true;
+        if (!c.isPlayer) continue;
+        float(c.x, c.y - 60, `${KEY_LABEL[k]} débloqué : ${c.def.abilities[k].name} !`, '#ffd34d', true);
+        addLog(`${c.def.name} atteint ${CFG.unlock[k]} % : ${c.def.abilities[k].name} débloqué`, c.team);
+      }
+    }
+  }
+  function unlocked(c, key) { return !!c.unl[key]; }
+  function power(c) { return U.clamp(0.85 + 0.009 * c.I, 0.85, 1.4); }
   // candidats adverses pilotés par l'IA : affaiblis selon la difficulté
   function foeBot(c) { return S.player && !c.isPlayer && c.team !== S.player.team; }
 
@@ -108,8 +134,7 @@ const Game = (() => {
         tgt.hitBy[src.id] = S.t;
         src.lastAttackedCandAt = S.t;
         // chaque polémique fait baisser la cible dans les sondages au profit de l'attaquant
-        const tr = Math.min(Math.max(0, tgt.I - 20), amt * 0.008);
-        tgt.I -= tr; src.I += tr;
+        transfer(tgt, src, amt * CFG.hitPoll);
       }
       if (tgt.channel && tgt.channel.type === 'recall') tgt.channel = null;
       if (tgt.hp <= 0) koCand(tgt, src);
@@ -125,8 +150,8 @@ const Game = (() => {
     if (c.busyCamp) { c.busyCamp.busy = null; c.busyCamp = null; }
     c.respawnAt = S.t + 5 + (S.t / 60) * 0.5;
     c.diedAt = S.t;
-    const loss = Math.max(0, c.I - 20) * 0.12;
-    c.I -= loss;
+    const loss = c.I * CFG.koPoll;
+    c.I -= loss; // une partie des électeurs déçus retourne chez les indécis
     let killer = src && src.kind === 'cand' ? src : null;
     const enemies = S.cands.filter((e) => e.team !== c.team);
     if (!killer) {
@@ -134,13 +159,13 @@ const Game = (() => {
       for (const e of enemies) if (c.hitBy[e.id] && S.t - c.hitBy[e.id] < 10 && c.hitBy[e.id] > best) { best = c.hitBy[e.id]; killer = e; }
     }
     if (killer) {
-      killer.I += loss * 0.7; killer.dons += 250; killer.kills++;
+      killer.I += loss * 0.7; checkUnlock(killer); killer.dons += 250; killer.kills++;
       for (const e of enemies) {
-        if (e !== killer && c.hitBy[e.id] && S.t - c.hitBy[e.id] < 10) { e.I += loss * 0.15; e.dons += 100; }
+        if (e !== killer && c.hitBy[e.id] && S.t - c.hitBy[e.id] < 10) { e.I += loss * 0.15; checkUnlock(e); e.dons += 100; }
       }
       addLog(`${c.def.name} est emporté${c.def.fem ? 'e' : ''} par une polémique de ${killer.def.name}`, killer.team);
     } else {
-      for (const e of enemies) e.I += (loss * 0.7) / enemies.length;
+      for (const e of enemies) { e.I += (loss * 0.7) / enemies.length; checkUnlock(e); }
       addLog(`${c.def.name} est rattrapé${c.def.fem ? 'e' : ''} par une polémique`, TEAMS[c.team].enemy);
     }
     float(c.x, c.y - 40, 'Scandale !', '#ffd34d', true);
@@ -152,7 +177,7 @@ const Game = (() => {
   function convert(m, src) {
     m.converted = true; m.hp = 0; m.voting = null; m.fadeUntil = S.t + 5;
     if (src && src.kind === 'cand') {
-      src.dons += 22; src.I += 2.5; src.conv++;
+      src.dons += 22; gain(src, 0.45); src.conv++;
       if (src.isPlayer) float(m.x, m.y - 16, '+22 €', '#ffd34d');
     }
   }
@@ -217,10 +242,10 @@ const Game = (() => {
         st.g = Math.min(CFG.bureauMax, st.g + 1);
       } else {
         st.g -= w;
-        for (const c of mates) c.I += 0.6;
+        for (const c of mates) gain(c, 0.1);
         if (st.g <= 0) {
           st.owner = team; st.g = CFG.bureauMax; st.conquered = true;
-          for (const c of mates) { c.I += 10; c.dons += 80; }
+          for (const c of mates) { gain(c, 1.6); c.dons += 80; }
           addLog(`Bureau « ${st.name} » conquis par la ${TEAMS[team].name.toLowerCase()}`, team);
           float(st.x, st.y - 50, 'Bureau conquis !', TEAMS[team].light, true);
         }
@@ -229,7 +254,7 @@ const Game = (() => {
       const full = team === 'gauche' ? st.gauge >= st.max : st.gauge <= -st.max;
       if (full) return;
       st.gauge = U.clamp(st.gauge + TEAMS[team].dir * w, -st.max, st.max);
-      for (const c of mates) { c.I += 1; c.dons += 8; }
+      for (const c of mates) { gain(c, 0.17); c.dons += 8; }
       if (st.ctrl && Math.sign(st.gauge) !== TEAMS[st.ctrl].dir) {
         addLog(`${st.name} : la ${TEAMS[st.ctrl].name.toLowerCase()} perd la majorité`, TEAMS[st.ctrl].enemy);
         st.ctrl = null;
@@ -257,7 +282,7 @@ const Game = (() => {
 
   function cast(c, key, tx, ty) {
     const ab = c.def.abilities[key];
-    if (!ab || !canAct(c) || c.cd[key] > 0) return false;
+    if (!ab || !canAct(c) || c.cd[key] > 0 || !unlocked(c, key)) return false;
     const st = c.st;
     const ap = st.ap;
     const dx = tx - c.x, dy = ty - c.y;
@@ -267,7 +292,7 @@ const Game = (() => {
       case 'skillshot':
         S.proj.push({
           kind: 'shot', src: c, team: c.team, x: c.x, y: c.y, vx: n.x * ab.speed, vy: n.y * ab.speed, range: ab.range, trav: 0,
-          dmg: ab.dmg * ap, width: ab.width, slow: ab.slow, slowDur: ab.slowDur, stun: ab.stun, pierce: ab.pierce, hit: new Set(), label: ab.name,
+          dmg: ab.dmg * ap, width: ab.width, slow: ab.slow, slowDur: ab.slowDur, stun: ab.stun, pierce: ab.pierce, hit: new Set(), label: ab.name, word: ab.name,
         });
         break;
       case 'nova':
@@ -288,7 +313,7 @@ const Game = (() => {
       }
       case 'shield':
         for (const a of alliesNear(c, ab.radius)) {
-          if (a !== c) c.I += 1; // soutenir ses alliés compte aussi dans les sondages
+          if (a !== c) gain(c, 0.15); // soutenir ses alliés compte aussi dans les sondages
           a.shield = Math.max(a.shieldUntil > S.t ? a.shield : 0, 0) + ab.amount * ap;
           a.shieldUntil = S.t + ab.dur;
           if (ab.as) a.buffs.push({ as: ab.as, until: S.t + ab.dur });
@@ -301,7 +326,7 @@ const Game = (() => {
       }
       case 'haste':
         for (const a of alliesNear(c, ab.radius)) {
-          if (a !== c) c.I += 1;
+          if (a !== c) gain(c, 0.15);
           a.buffs.push({ haste: ab.pct, until: S.t + ab.dur });
           if (ab.shield) { a.shield = (a.shieldUntil > S.t ? a.shield : 0) + ab.shield * ap; a.shieldUntil = S.t + ab.dur; }
         }
@@ -386,7 +411,7 @@ const Game = (() => {
     const sen = S.obj.bot.ctrl;
     for (const c of S.cands) {
       c.dons += CFG.passiveDons * dt;
-      if (sen === c.team) { c.I += 0.25 * dt; c.dons += 1.5 * dt; S.teams[c.team].parrainages += 0.25 * dt; }
+      if (sen === c.team) { gain(c, 0.04 * dt); c.dons += 1.5 * dt; S.teams[c.team].parrainages += 0.25 * dt; }
     }
 
     for (const c of S.cands) updateCand(c, dt);
@@ -463,7 +488,13 @@ const Game = (() => {
       return;
     }
 
-    // Canalisation (camp de jungle : immobilisé 10 s ; retour au QG)
+    // Canalisation (camp de jungle : rester immobile ; retour au QG)
+    if (c.channel && (c.moveTo || c.campTarget || (c.target && !c.autoTarget))) {
+      // le candidat bouge : la canalisation est annulée et repartira de zéro
+      if (c.channel.type === 'camp') { c.channel.camp.busy = null; c.busyCamp = null; }
+      if (c.isPlayer) float(c.x, c.y - 50, c.channel.type === 'camp' ? 'Récolte annulée' : 'Retour annulé', '#ff9b9b');
+      c.channel = null;
+    }
     if (c.channel) {
       if (S.t >= c.channel.until) {
         const ch = c.channel;
@@ -485,38 +516,25 @@ const Game = (() => {
       const camp = c.campTarget;
       if (!campAvailable(camp)) { c.campTarget = null; }
       else if (U.dist(c, camp) <= camp.r + c.r + 24) {
-        c.channel = { type: 'camp', camp, until: S.t + CFG.campChannel, dur: CFG.campChannel };
+        const dur = campDuration(c, camp);
+        c.channel = { type: 'camp', camp, until: S.t + dur, dur };
         camp.busy = c; c.busyCamp = camp; c.campTarget = null; c.moveTo = null; c.target = null;
         return;
       } else { moveToward(c, camp.x, camp.y, c.st.speed, dt); return; }
     }
 
-    // Attaque automatique du joueur à l'arrêt : cible la plus proche à portée
-    if (c.isPlayer && !c.target && !c.moveTo && !c.campTarget) {
-      let best = null, bd = Infinity;
-      const enemy = TEAMS[c.team].enemy;
-      for (const e of S.cands) if (e.team === enemy && !e.dead) { const d = U.dist(c, e) - e.r; if (d <= c.st.range && d < bd) { bd = d; best = e; } }
-      for (const m of S.mil) if (m.team === enemy && !m.converted) { const d = U.dist(c, m) - m.r; if (d <= c.st.range && d < bd) { bd = d; best = m; } }
-      if (best) { c.target = best; c.autoTarget = true; }
-    }
+    if (c.isPlayer) { playerCombat(c, dt); return; }
 
     // Attaque
     const tg = c.target;
     if (tg) {
-      const alive = tg.kind === 'cand' ? !tg.dead : !tg.converted && S.mil.includes(tg);
-      if (!alive) c.target = null;
+      if (!alive(tg)) c.target = null;
       else {
         const d = U.dist(c, tg);
         if (d <= c.st.range + tg.r) {
-          if (c.atkCd <= 0) {
-            S.proj.push({ kind: 'atk', src: c, team: c.team, x: c.x, y: c.y, target: tg, speed: 1100, dmg: c.st.ad });
-            c.atkCd = 1 / c.st.as;
-            c.lastAtkAt = S.t; c.face = Math.atan2(tg.y - c.y, tg.x - c.x);
-          }
+          if (c.atkCd <= 0) shoot(c, tg);
           return;
         }
-        // une cible automatique hors de portée est abandonnée (on ne poursuit pas)
-        if (c.autoTarget) { c.target = null; c.autoTarget = false; return; }
         moveToward(c, tg.x, tg.y, c.st.speed, dt);
         return;
       }
@@ -526,6 +544,43 @@ const Game = (() => {
     }
   }
 
+  // immobile 12 s de son côté de la carte, 7 s chez l'adversaire, 10 s en zone neutre
+  function campDuration(c, camp) {
+    if (camp.side === c.team) return CFG.campChannelOwn;
+    if (camp.side === 'neutre') return CFG.campChannel;
+    return CFG.campChannelFoe;
+  }
+
+  function alive(t) { return t.kind === 'cand' ? !t.dead : !t.converted && S.mil.includes(t); }
+  function inRange(c, t) { return U.dist(c, t) <= c.st.range + t.r; }
+  function shoot(c, tg) {
+    S.proj.push({ kind: 'atk', src: c, team: c.team, x: c.x, y: c.y, target: tg, speed: 1100, dmg: c.st.ad, word: U.pick(QUIPS) });
+    c.atkCd = 1 / c.st.as;
+    c.lastAtkAt = S.t; c.face = Math.atan2(tg.y - c.y, tg.x - c.x); c.lastShot = tg;
+  }
+  // Joueur : les attaques partent toutes seules, même en se déplaçant.
+  // Priorité : cible verrouillée (clic / Tab), puis militant adverse, puis candidat adverse à portée.
+  function playerCombat(c, dt) {
+    if (c.target && !alive(c.target)) { c.target = null; c.autoTarget = false; }
+    if (c.atkCd <= 0) {
+      let tg = c.target && inRange(c, c.target) ? c.target : null;
+      if (!tg) tg = nearestFoe(c, S.mil, c.st.range);
+      if (!tg) tg = nearestFoe(c, S.cands, c.st.range);
+      if (tg) shoot(c, tg);
+    }
+    if (c.moveTo) { if (moveToward(c, c.moveTo.x, c.moveTo.y, c.st.speed, dt)) c.moveTo = null; }
+    else if (c.target && !c.autoTarget && !inRange(c, c.target)) moveToward(c, c.target.x, c.target.y, c.st.speed, dt);
+  }
+  function nearestFoe(c, list, range) {
+    let best = null, bd = Infinity;
+    for (const e of list) {
+      if (e.team === c.team || !alive(e)) continue;
+      const d = U.dist(c, e) - e.r;
+      if (d <= range && d < bd) { bd = d; best = e; }
+    }
+    return best;
+  }
+
   function harvest(c, camp) {
     camp.busy = null; c.busyCamp = null;
     const team = c.team;
@@ -533,7 +588,7 @@ const Game = (() => {
     if (camp.type === 'mairie') {
       // plus le camp a déjà été vidé par ce camp, plus la mairie rapporte de parrainages
       const p = Math.round(12 * (1 + 0.35 * h));
-      c.I += p; S.teams[team].parrainages += p;
+      gain(c, p / 6); S.teams[team].parrainages += p;
       float(camp.x, camp.y - 60, `+${p} parrainages`, '#9be28f', true);
       camp.availableAt = S.t + CFG.mairieRespawn;
     } else {
@@ -714,7 +769,7 @@ const Game = (() => {
 
   return {
     newGame, update, cast, buy, recall, share, power, stats, canAct, campAvailable, inOwnQG, laneOwnedBy, station,
-    foeBot,
+    foeBot, unlocked, undecided, campDuration, alive,
     get S() { return S; },
   };
 })();

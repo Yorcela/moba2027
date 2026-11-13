@@ -42,10 +42,12 @@ puis ouvrez http://localhost:8127.
 | **Élysée** | 16 bulletins font gagner la partie. |
 | **Second tour** | À 15:00, chaque bulletin compte double. |
 | **Conversion** | Un candidat qui met KO un militant adverse le « convertit » : le militant rentre chez lui sans voter, et le candidat gagne des dons et des points de sondage. |
-| **Polémiques** | Les attaques des candidats sont des polémiques. Chaque coup fait baisser la cible dans les sondages au profit de l’attaquant. À 0 de crédibilité, c’est le scandale : retour au QG avec un délai, et une grosse perte dans les sondages. |
-| **Sondage** | Le score de chaque candidat est sa part de l’influence totale, ramenée à 100 %. Il détermine sa **puissance** (dégâts et crédibilité). |
-| **Mairies** | Immobilisent 10 s et rapportent des **parrainages**. Plus votre camp a vidé une mairie, plus elle rapporte. |
-| **Meetings** | Immobilisent 10 s et rapportent des **dons**. |
+| **Polémiques** | Les attaques des candidats sont des polémiques, lancées sous forme de **phylactères** (« Honte ! », « Démission ! »…). Les sorts sont des bulles pleines aux couleurs du camp. Chaque coup fait baisser la cible dans les sondages au profit de l’attaquant. À 0 de crédibilité, c’est le scandale : retour au QG avec un délai, et 15 % de son score perdu. |
+| **Sondage** | Tout le monde part de **0 %** : les 100 % sont d’abord des **indécis**. Conversions, bulletins, bureaux conquis et mairies font gagner des indécis, de plus en plus difficilement à mesure qu’il en reste peu. Polémiques et scandales font passer des points d’un candidat à l’autre. Le score détermine la **puissance** (dégâts et crédibilité). |
+| **Sorts** | Ils se débloquent dans les sondages : **A à 5 %**, **Z à 10 %**, **E à 15 %**, **R à 30 %**. Un sort débloqué le reste. |
+| **Mairies** | Rapportent des **parrainages** (et du sondage). Plus votre camp a vidé une mairie, plus elle rapporte. |
+| **Meetings** | Rapportent des **dons**. |
+| **Récolte** | Il faut rester **immobile** : 12 s de son côté de la carte, 7 s du côté adverse, 10 s dans les quartiers neutres. Bouger annule la récolte, qui repart de zéro. |
 | **Boutique** | Accessible au QG. On y achète du matériel de campagne : des objets personnels (porte-voix, bus, media training…) et des améliorations pour les militants (tracts, banderoles, baskets). |
 | **Fin de partie** | Le premier camp à remplir la jauge de l’Élysée gagne. À 25:00, si personne n’a gagné, le scrutin est clos et c’est la jauge de l’Élysée qui départage les camps. Le candidat le mieux placé dans les sondages du camp gagnant est élu. |
 
@@ -61,23 +63,19 @@ Les kits sont symétriques pour l’équilibre. Les rôles de rempart diffèrent
 
 ## Contrôles
 
-Le menu propose deux modes de contrôle et trois niveaux de difficulté (Facile par défaut). La difficulté n'affecte que les candidats adverses contrôlés par l'IA : leurs dégâts, leur réactivité et la fréquence de leurs sorts.
+Le jeu se joue entièrement au clavier ; la souris est facultative. Le menu propose deux modes de contrôle et trois niveaux de difficulté (Facile par défaut). La difficulté n'affecte que les candidats adverses contrôlés par l'IA : leurs dégâts, leur réactivité et la fréquence de leurs sorts.
 
-| Action | Mode « Souris + flèches » | Mode « Clavier » |
+| Action | Mode « Flèches » (par défaut) | Mode « ZQSD » |
 |---|---|---|
-| Se déplacer | clic ou flèches | ZQSD (WASD en QWERTY) ou flèches |
-| Sorts (vers la souris) | A Z E R en AZERTY (Q W E R en QWERTY) | 1 2 3 4 |
-| Attaquer | clic sur l'ennemi, ou automatique à l'arrêt | automatique à l'arrêt |
+| Se déplacer | flèches (ou clic) | ZQSD (WASD en QWERTY) ou flèches |
+| Sorts | A Z E R en AZERTY (Q W E R en QWERTY) | 1 2 3 4 |
 
-Les deux modes partagent aussi ces commandes :
-- **Attaque automatique** : à l'arrêt, le candidat attaque l'ennemi le plus proche dans son cercle de portée (jaune). C'est la façon la plus simple de convertir les militants adverses.
-- **Clic sur une icône de sort** : lance le sort sur l'ennemi le plus proche.
-- **Maj + touche de sort** : vise d'abord, puis lance au clic.
-- **B** : retour au QG.
-- **P** : boutique.
-- **Espace** : caméra libre.
-- **Molette** : zoom.
-- **Échap** : pause.
+- **Attaques automatiques** : elles partent toutes seules, même en marchant, sur l'ennemi dans votre cercle de portée (jaune) : militants d'abord, puis candidats.
+- **Sorts à visée automatique** : ils visent la cible verrouillée, sinon le candidat adverse le plus proche, sinon un militant. Le déplacement éclair part dans la direction des flèches enfoncées. **Maj + sort** vise à la souris.
+- **Tab** : verrouiller le candidat adverse le plus proche (prioritaire pour les attaques et les sorts). **X** : libérer la cible.
+- **Entrée** : récolter la mairie ou le meeting le plus proche.
+- **B** : retour au QG. **P** : boutique, puis **1** à **9** pour acheter.
+- **Espace** : caméra libre. **Molette** : zoom. **Échap** : pause.
 
 Quand votre candidat est mis KO par un scandale, un grand compte à rebours s'affiche au centre de l'écran jusqu'à son retour. Le délai de retour de chaque candidat apparaît aussi dans le sondage.
 

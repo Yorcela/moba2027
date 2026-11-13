@@ -399,7 +399,48 @@ const R3 = (() => {
   }
 
   // ── Projectiles et effets ──
+  // Les polémiques des candidats sont des phylactères (bulles de parole) ; un sort a une bulle pleine aux couleurs du camp.
+  const bubbleTex = new Map();
+  function bubble(text, team, spell) {
+    const key = text + '|' + team + '|' + (spell ? 1 : 0);
+    let b = bubbleTex.get(key);
+    if (b) return b;
+    const cv = document.createElement('canvas');
+    const x = cv.getContext('2d');
+    const fs = 44;
+    x.font = `900 ${fs}px system-ui, sans-serif`;
+    const tw = Math.ceil(x.measureText(text).width);
+    const w = tw + 56, bh = 84, tail = 26, h = bh + tail;
+    cv.width = w; cv.height = h;
+    const col = TEAMS[team].color;
+    const fill = spell ? col : '#ffffff', ink = spell ? '#ffffff' : '#15181d';
+    x.lineWidth = 7; x.strokeStyle = spell ? '#ffffff' : col; x.fillStyle = fill;
+    const r = 36, L = 4, T = 4, R = w - 4, B = bh;
+    x.beginPath();
+    x.moveTo(L + r, T); x.lineTo(R - r, T); x.quadraticCurveTo(R, T, R, T + r); x.lineTo(R, B - r); x.quadraticCurveTo(R, B, R - r, B);
+    x.lineTo(w * 0.42, B); x.lineTo(w * 0.28, h - 3); x.lineTo(w * 0.3, B); // la queue de la bulle
+    x.lineTo(L + r, B); x.quadraticCurveTo(L, B, L, B - r); x.lineTo(L, T + r); x.quadraticCurveTo(L, T, L + r, T);
+    x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = ink; x.font = `900 ${fs}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(text, w / 2, bh / 2 + 3);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.minFilter = THREE.LinearFilter;
+    b = { tex, aspect: w / h };
+    bubbleTex.set(key, b);
+    return b;
+  }
   function buildProj(p) {
+    if (p.word && p.src && p.src.kind === 'cand') {
+      const spell = p.kind === 'shot';
+      const b = bubble(p.word, p.team, spell);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: b.tex, transparent: true, depthWrite: false }));
+      const hgt = spell ? 62 + p.width * 0.4 : 40;
+      sp.scale.set(hgt * b.aspect, hgt, 1);
+      sp.center.set(0.3, 0);
+      sp.renderOrder = 5;
+      sp.userData.bubble = true;
+      return sp;
+    }
     if (p.kind === 'atk') {
       const col = p.bureau ? 0xffe27a : hex(TEAMS[p.team].light);
       return scaleTo(new THREE.Mesh(G.sphLo, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.9 })), p.bureau ? 7 : p.small ? 4 : 8);
@@ -439,7 +480,7 @@ const R3 = (() => {
         if (!c.dead) animateCand(o, c, S, dt, t);
       }
       for (const m of S.mil) animateMil(ensure(m, buildMilitant), m, dt);
-      for (const p of S.proj) ensure(p, buildProj).position.set(p.x, p.bureau ? 50 : 55, p.y);
+      for (const p of S.proj) { const o = ensure(p, buildProj); o.position.set(p.x, o.userData.bubble ? 70 : p.bureau ? 50 : 55, p.y); }
       for (const f of S.fx) {
         const o = ensure(f, buildFx);
         o.position.set(f.x, 0, f.y);
@@ -471,7 +512,7 @@ const R3 = (() => {
         if (u.windows) u.windows.material = on ? mat(0xffe08a, { emissive: 0xffc94d, emissiveIntensity: 0.8 }) : mat(0x3a3a3a);
       });
     }
-    for (const [e, o] of live) if (!seen.has(e)) { scene.remove(o); live.delete(e); }
+    for (const [e, o] of live) if (!seen.has(e)) { scene.remove(o); live.delete(e); if (o.isSprite) o.material.dispose(); }
     for (const f of statics.flags) f.rotation.y = Math.sin(t * 2 + f.id) * 0.25;
   }
 

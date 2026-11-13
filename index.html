@@ -78,6 +78,7 @@
   .poll-row { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; margin-bottom: 7px; }
   .poll-row.me .pn { color: var(--gold); }
   .poll-row.dead { opacity: .5; }
+  .poll-row.und { color: var(--mute); font-style: italic; border-top: 1px solid var(--line); padding-top: 5px; }
   .pn { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pv { font: 800 13px ui-monospace, monospace; }
   .pb { grid-column: 1 / -1; height: 6px; background: #0d1116; border-radius: 4px; overflow: hidden; }
@@ -103,6 +104,8 @@
   .ab .cdo { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.7); z-index: 1; }
   .ab .cdv { position: absolute; inset: 0; display: grid; place-items: center; font: 900 22px system-ui; z-index: 3; }
   .ab.aim { border-color: var(--gold); }
+  .ab .lock { display: none; position: absolute; inset: 0; z-index: 4; background: rgba(10,12,16,.82); place-items: center; font: 800 13px system-ui; color: #c9d1db; }
+  .ab.locked .lock { display: grid; }
   #right-bottom { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   #me-dons { font: 800 18px ui-monospace, monospace; color: var(--gold); }
   #me-items { display: grid; grid-template-columns: repeat(3, 30px); gap: 4px; }
@@ -116,6 +119,8 @@
   #shop-where { color: var(--mute); margin-bottom: 10px; font-size: 13px; }
   #shop-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 8px; }
   .shop-item { display: grid; grid-template-columns: 36px 1fr auto; grid-template-rows: auto auto; gap: 0 8px; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: #161c24; }
+  .shop-item { position: relative; }
+  .shop-item .num { position: absolute; top: 4px; left: 6px; font: 900 11px ui-monospace, monospace; color: var(--gold); }
   .shop-item.team { border-color: rgba(155,226,143,.4); }
   .shop-item:disabled { opacity: .45; cursor: not-allowed; }
   .shop-item .ic { grid-row: 1 / 3; font-size: 24px; display: grid; place-items: center; }

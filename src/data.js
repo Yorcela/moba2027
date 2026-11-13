@@ -25,7 +25,9 @@ const CFG = {
   bureauMax: 6,          // bulletins pour conquérir un bureau de vote
   objMax: { top: 10, mid: 16, bot: 10 }, // bulletins pour contrôler AN / gagner l'Élysée / contrôler le Sénat
   secondTour: 15 * 60,   // à partir de là, chaque bulletin compte double
-  campChannel: 10,       // s d'immobilisation dans un camp de jungle
+  campChannel: 10,       // s immobile dans un camp de jungle neutre
+  campChannelOwn: 12,    // … dans un camp de son côté de la carte
+  campChannelFoe: 7,     // … dans un camp du côté adverse (plus risqué, plus rapide)
   mairieRespawn: 55,
   meetingRespawn: 45,
   recallTime: 4,
@@ -33,7 +35,11 @@ const CFG = {
   qgRadius: 190,
   passiveDons: 1.5,      // € / s
   startDons: 300,
-  startI: 100,           // influence de départ (base du sondage)
+  startI: 0,             // tout le monde part de 0 % dans les sondages
+  unlock: { Q: 5, W: 10, E: 15, R: 30 }, // % de sondage pour débloquer chaque sort
+  pollGain: 1.8,         // multiplicateur des gains de sondage
+  hitPoll: 0.002,        // points de sondage volés par point de dégât de polémique
+  koPoll: 0.15,          // part du sondage perdue lors d'un scandale
   bureauRange: 360,
   milDmgBonus: 1.8,      // les polémiques des candidats convertissent plus vite les militants
   difficulty: 'facile',
@@ -140,4 +146,13 @@ const BUREAU_NAMES = [
   'École Jaurès', 'Gymnase Zola', 'Salle des fêtes', 'Groupe scolaire Curie', 'Mairie annexe', 'Collège Hugo',
   'École des Tilleuls', 'Maison des assos', 'Salle polyvalente', 'École du Parc',
   'Centre culturel', 'École Prévert', 'Médiathèque', 'Foyer rural',
+];
+
+// Libellé des touches de sort (AZERTY par défaut, ajusté par l'interface)
+const KEY_LABEL = { Q: 'A', W: 'Z', E: 'E', R: 'R' };
+
+// Phylactères : ce que les candidats se lancent à la figure
+const QUIPS = [
+  'Honte !', 'Démission !', 'Mensonge !', 'Et alors ?', 'Scandale !', 'Ridicule !', 'Fake news !', 'Amateur !',
+  'Hors-sol !', 'Bla-bla !', 'Rendez l’argent !', 'Incompétent !', 'Populiste !', 'Assumez !', 'Pff…', 'Ça suffit !',
 ];
