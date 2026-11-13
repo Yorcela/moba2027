@@ -126,6 +126,11 @@
   .shop-item { display: grid; grid-template-columns: 36px 1fr auto; grid-template-rows: auto auto; gap: 0 8px; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: #161c24; }
   .shop-item { position: relative; }
   .shop-item .num { position: absolute; top: 4px; left: 6px; font: 900 11px ui-monospace, monospace; color: var(--gold); }
+  .shop-cat { grid-column: 1 / -1; margin: 6px 0 0; font-size: 13px; color: var(--gold); text-transform: uppercase; letter-spacing: .05em; }
+  .shop-item.sel { outline: 2px solid var(--gold); }
+  .shop-item .pips { grid-column: 3; display: flex; gap: 3px; justify-content: flex-end; }
+  .shop-item .pips i { width: 7px; height: 7px; border-radius: 2px; background: #3a4452; }
+  .shop-item .pips i.on { background: var(--gold); }
   .shop-item.team { border-color: rgba(155,226,143,.4); }
   .shop-item:disabled { opacity: .45; cursor: not-allowed; }
   .shop-item .ic { grid-row: 1 / 3; font-size: 24px; display: grid; place-items: center; }
@@ -214,6 +219,7 @@
 <div id="shop" class="hidden">
   <div class="shop-box panel">
     <h2>Matériel de campagne</h2>
+    <p class="hint">Chaque objet s’améliore jusqu’au niveau 5 : plus cher à chaque fois, mais plus puissant.</p>
     <div id="shop-where"></div>
     <div id="shop-list"></div>
     <button id="shop-close">Fermer (Échap)</button>

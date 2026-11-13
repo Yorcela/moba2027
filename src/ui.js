@@ -109,7 +109,7 @@
     return `${base} · les attaques partent <b>toutes seules</b> sur l’ennemi à portée, et les sorts visent <b>automatiquement</b> ·
       sorts débloqués à ${CFG.unlock.Q} / ${CFG.unlock.W} / ${CFG.unlock.E} / ${CFG.unlock.R} % dans les sondages ·
       <kbd>Tab</kbd> verrouiller un candidat · <kbd>Entrée</kbd> récolter le camp le plus proche · <kbd>B</kbd> retour au QG ·
-      <kbd>P</kbd> boutique (<kbd>1</kbd>…<kbd>9</kbd> pour acheter) · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause · <kbd>Maj</kbd>+sort : viser à la souris`;
+      <kbd>P</kbd> boutique (<kbd>flèches</kbd> + <kbd>Entrée</kbd> pour acheter ou améliorer) · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause · <kbd>Maj</kbd>+sort : viser à la souris`;
   }
   renderMenu();
 
@@ -191,18 +191,30 @@
   function buildShop() {
     const list = $('#shop-list');
     list.innerHTML = '';
-    ITEMS.forEach((it, i) => {
-      const b = document.createElement('button');
-      b.className = 'shop-item' + (it.team ? ' team' : '');
-      b.dataset.id = it.id;
-      b.innerHTML = `<span class="num">${i + 1}</span><span class="ic">${it.icon}</span><span class="nm"></span><span class="ds"></span><span class="pr"></span><span class="lv"></span>`;
-      b.onclick = () => buyItem(it);
-      list.appendChild(b);
-    });
+    shopOrder = [];
+    // objets groupés par catégorie ; flèches + Entrée, ou 1 à 9 pour les premiers
+    for (const [cat, label] of Object.entries(ITEM_CATS)) {
+      const h = document.createElement('h4');
+      h.className = 'shop-cat';
+      h.textContent = label;
+      list.appendChild(h);
+      for (const it of ITEMS.filter((x) => x.cat === cat)) {
+        const i = shopOrder.length;
+        shopOrder.push(it);
+        const b = document.createElement('button');
+        b.className = 'shop-item' + (it.team ? ' team' : '');
+        b.dataset.id = it.id;
+        b.innerHTML = `<span class="num">${i < 9 ? i + 1 : ''}</span><span class="ic">${it.icon}</span><span class="nm"></span><span class="ds"></span><span class="pr"></span><span class="lv"></span><span class="pips"></span>`;
+        b.onclick = () => buyItem(it);
+        list.appendChild(b);
+      }
+    }
   }
+  let shopOrder = [], shopSel = 0;
   function buyItem(it) {
+    const nx = Game.itemNext(Game.S.player, it.id);
     const err = Game.buy(Game.S.player, it.id);
-    toast(err || `${it.name} : acheté`);
+    toast(err || `${nx.name} (niv. ${nx.lvl}) : acheté`);
     refreshShop();
   }
   function refreshShop() {
@@ -214,10 +226,13 @@
       const nx = Game.itemNext(p, it.id);
       const cur = it.team ? S.teams[p.team].up[it.key] : p.lv[it.id] || 0;
       b.disabled = !inQG || !nx || p.dons < nx.cost;
-      b.querySelector('.nm').textContent = nx ? nx.name : (it.team ? it.name : it.lv[2].name);
-      b.querySelector('.ds').textContent = nx ? (cur ? 'Niveau suivant : ' : '') + nx.desc : 'Niveau maximum';
+      const max = it.team ? 3 : it.lv.length;
+      b.querySelector('.nm').textContent = nx ? (cur ? `Améliorer : ${nx.name}` : nx.name) : (it.team ? it.name : it.lv[max - 1].name);
+      b.querySelector('.ds').textContent = nx ? (cur && !it.team ? `${it.fmt(it.lv[cur - 1].v)} → ` : '') + nx.desc : `Niveau maximum : ${it.team ? it.desc : it.fmt(it.lv[max - 1].v)}`;
       b.querySelector('.pr').textContent = nx ? nx.cost + ' €' : '—';
-      b.querySelector('.lv').textContent = `niv. ${cur}/3`;
+      b.querySelector('.lv').textContent = `niv. ${cur}/${max}`;
+      b.querySelector('.pips').innerHTML = Array.from({ length: max }, (_, k) => `<i class="${k < cur ? 'on' : ''}"></i>`).join('');
+      b.classList.toggle('sel', shopOrder[shopSel] === it);
     }
   }
   function toggleShop(force) {
@@ -306,8 +321,17 @@
     }
     if (paused) return;
     const clavier = prefs.controls === 'clavier';
+    if (shopOpen && /^(Digit|Numpad)[1-9]$/.test(code)) { const it = shopOrder[+code.slice(-1) - 1]; if (it) buyItem(it); e.preventDefault(); return; }
+    if (shopOpen && (MOVE[code] || code === 'Enter' || code === 'NumpadEnter')) {
+      // boutique au clavier : flèches pour choisir, Entrée pour acheter / améliorer
+      e.preventDefault();
+      if (code === 'ArrowDown' || code === 'ArrowRight') shopSel = (shopSel + 1) % shopOrder.length;
+      else if (code === 'ArrowUp' || code === 'ArrowLeft') shopSel = (shopSel + shopOrder.length - 1) % shopOrder.length;
+      else buyItem(shopOrder[shopSel]);
+      refreshShop();
+      return;
+    }
     if (MOVE[code] || (clavier && MOVE_WASD[code])) { keys.add(code); e.preventDefault(); return; }
-    if (shopOpen && /^(Digit|Numpad)[1-9]$/.test(code)) { const it = ITEMS[+code.slice(-1) - 1]; if (it) buyItem(it); e.preventDefault(); return; }
     if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); if (!p.dead) activateCamp(p); return; }
     if (code === 'Tab') { e.preventDefault(); if (!p.dead) lockNearest(p); return; }
     const spellByCode = clavier
@@ -397,7 +421,7 @@
       const id = p.items[i];
       if (!id) return '<span class="slot" title="vide"></span>';
       const it = ITEM_BY_ID[id], L = it.lv[p.lv[id] - 1];
-      return `<span class="slot" title="${L.name} (niv. ${p.lv[id]}) — ${it.fmt(L.v)}">${it.icon}<sub>${p.lv[id]}</sub></span>`;
+      return `<span class="slot" title="${L.name} (niv. ${p.lv[id]}/${it.lv.length}) — ${it.fmt(L.v)}">${it.icon}<sub>${p.lv[id]}</sub></span>`;
     }).join('');
     const e = p.def.fem ? 'e' : '';
     let status = '';

@@ -35,20 +35,20 @@ puis ouvrez http://localhost:8127.
 | Mécanique | Fonctionnement |
 |---|---|
 | **Militants** | Une vague par voie toutes les 22 s. Chaque militant porte un bulletin. Les vagues grossissent au fil de la partie. |
-| **Bureaux de vote** | 6 bulletins adverses suffisent à conquérir un bureau, et la conquête est définitive (comme une tourelle détruite). Un bureau tire sur les candidats adverses, jamais sur les militants. |
+| **Bureaux de vote** | 6 bulletins adverses suffisent à conquérir un bureau. Un bureau conquis peut être **repris** par les militants de son camp d’origine (il repart alors avec 3 bulletins). Les militants doivent reprendre chaque bureau perdu sur leur chemin avant d’aller au suivant. Un bureau tire sur les candidats adverses, jamais sur les militants. |
 | **Objectifs** | Une voie s’ouvre quand tous les bureaux adverses de cette voie sont conquis. Les militants votent alors à l’objectif. Chaque objectif a une jauge commune à remplir, et les deux camps peuvent voter dans la même jauge, chacun la tirant vers soi. |
 | **Assemblée nationale** | 10 bulletins donnent la majorité, qui renforce les militants du camp de 25 %. |
 | **Sénat** | 10 bulletins donnent la majorité, qui rapporte des parrainages et des dons en continu. |
 | **Élysée** | 16 bulletins font gagner la présidentielle. |
 | **Second tour** | À 60 % du temps, chaque bulletin compte double. |
 | **Conversion** | Un candidat qui met KO un militant adverse le « convertit » : le militant rentre chez lui sans voter, et le candidat gagne des dons et des points de sondage. |
-| **Polémiques** | Les attaques des candidats sont des polémiques, lancées sous forme de **phylactères** (« Honte ! », « Démission ! »…). Les sorts sont des bulles pleines aux couleurs du camp. Chaque coup fait baisser la cible dans les sondages au profit de l’attaquant. À 0 de crédibilité, c’est le scandale : retour au QG avec un délai, et 15 % de son score perdu. |
+| **Polémiques** | Les attaques des candidats sont des polémiques, lancées sous forme de **phylactères** (« Honte ! », « Démission ! »…). Les sorts sont des bulles pleines aux couleurs du camp. Chaque coup fait baisser la cible dans les sondages au profit de l’attaquant. À 0 de crédibilité, c’est le scandale : 15 % de son score perdu et retour au QG. Le délai de retour vaut 1 s par point de sondage (de 3 à 15 s), et toutes les recharges sont remises à zéro. |
 | **Sondage** | Tout le monde part de **0 %** : les 100 % sont d’abord des **indécis**. Conversions, bulletins, bureaux conquis et mairies font gagner des indécis, de plus en plus difficilement à mesure qu’il en reste peu. Polémiques et scandales font passer des points d’un candidat à l’autre. Le score détermine la **puissance** (dégâts et crédibilité). |
 | **Sorts** | Ils se débloquent dans les sondages : **A à 5 %**, **Z à 10 %**, **E à 15 %**, **R à 30 %**. Un sort débloqué le reste. |
 | **Mairies** | Rapportent des **parrainages** (et du sondage). Plus votre camp a vidé une mairie, plus elle rapporte. |
 | **Meetings** | Rapportent des **dons**. Chaque meeting déjà organisé par votre camp dure 2 s de plus mais rapporte 70 € de plus. |
 | **Récolte** | Il faut rester **immobile** : 12 s de son côté de la carte, 7 s du côté adverse, 10 s dans les quartiers neutres. Bouger annule la récolte, qui repart de zéro. |
-| **Boutique** | Accessible au QG (P, puis 1 à 9). Chaque objet personnel a **3 niveaux**, de plus en plus chers et puissants : par exemple Porte-voix (250 €, +15 % dégâts), puis Mégaphone (550 €, +35 %), puis Sono de stade (1 000 €, +65 %). Les améliorations des militants (tracts, banderoles, baskets) coûtent aussi de plus en plus cher. |
+| **Boutique** | Accessible au QG (P, puis flèches et Entrée, ou 1 à 9). Les objets ne se consomment pas : chacun **s’améliore jusqu’au niveau 5**, de plus en plus cher et puissant. Par exemple le Porte-voix passe à Mégaphone, Sono, Concert géant puis Stade plein, de +12 % à +85 % de dégâts, et de 250 € à 2 000 €. Il y a des objets de **vitesse**, de **tank** (crédibilité, réduction des dégâts subis, récupération), de **DPS** (dégâts, vitesse d’attaque, portée), de **sorts** (puissance) et de **recharge**, plus des améliorations des militants. 6 objets au maximum. |
 | **Victoire** | Il faut gagner la **présidentielle** (Élysée) **et** avoir la majorité dans **au moins une chambre** (Assemblée ou Sénat). Sinon c’est la cohabitation, et la partie continue. |
 | **Durée** | 5, 10 ou 15 minutes, au choix dans le menu. À la fin du temps, le candidat **en tête des sondages** l’emporte pour son camp et il est élu. |
 

@@ -32,6 +32,7 @@ const CFG = {
   mairieRespawn: 55,
   meetingRespawn: 45,
   recallTime: 4,
+  respawnMax: 15,        // délai de retour max (1 s par point de sondage)
   timeLimit: 10 * 60,    // durée de la partie : 5, 10 ou 15 min (choisie dans le menu)
   durations: [5, 10, 15],
   qgRadius: 190,
@@ -263,37 +264,45 @@ for (const d of CANDIDATES) {
 const CAND_BY_ID = Object.fromEntries(CANDIDATES.map((c) => [c.id, c]));
 
 // ─── Matériel de campagne ────────────────────────────────────────────────────
-// Chaque objet personnel a 3 niveaux : chaque achat le fait monter d'un niveau, plus cher et plus puissant.
-// ap = puissance des sorts ; dmg = dégâts des attaques et des sorts.
+// Les objets ne se consomment pas : chacun s'améliore jusqu'au niveau 5, chaque niveau coûtant plus cher
+// et apportant plus. 6 objets personnels au maximum.
+const ITEM_CATS = { vitesse: 'Vitesse', tank: 'Tank', dps: 'DPS', sorts: 'Sorts', recharge: 'Recharge', militants: 'Militants' };
+const COSTS = [250, 450, 800, 1300, 2000];
+const mkLv = (names, vals, costs = COSTS) => names.map((name, i) => ({ name, cost: costs[i], v: vals[i] }));
+const pct = (v) => Math.round(v * 100);
 const ITEMS = [
-  { id: 'portevoix', icon: '📣', stat: 'dmg', fmt: (v) => `+${Math.round(v * 100)} % dégâts`,
-    lv: [{ name: 'Porte-voix', cost: 250, v: 0.15 }, { name: 'Mégaphone', cost: 550, v: 0.35 }, { name: 'Sono de stade', cost: 1000, v: 0.65 }] },
-  { id: 'plateau', icon: '📺', stat: 'ap', fmt: (v) => `+${Math.round(v * 100)} % puissance des sorts`,
-    lv: [{ name: 'Passage radio', cost: 300, v: 0.2 }, { name: 'Plateau télé', cost: 650, v: 0.45 }, { name: 'Débat du 20 h', cost: 1150, v: 0.8 }] },
-  { id: 'agence', icon: '📰', stat: 'as', fmt: (v) => `+${Math.round(v * 100)} % vitesse d’attaque`,
-    lv: [{ name: 'Attaché de presse', cost: 300, v: 0.2 }, { name: 'Agence de com', cost: 650, v: 0.45 }, { name: 'Cabinet de conseil', cost: 1150, v: 0.8 }] },
-  { id: 'cm', icon: '📱', stat: 'range', fmt: (v) => `+${v} portée, +${Math.round(v / 4)} % dégâts`,
-    lv: [{ name: 'Community manager', cost: 300, v: 40 }, { name: 'Équipe digitale', cost: 600, v: 80 }, { name: 'Armée de trolls', cost: 1050, v: 130 }] },
-  { id: 'media', icon: '🎙️', stat: 'hp', fmt: (v) => `+${Math.round(v * 100)} % crédibilité max`,
-    lv: [{ name: 'Media training', cost: 250, v: 0.2 }, { name: 'Coach vocal', cost: 550, v: 0.45 }, { name: 'Storytelling', cost: 1000, v: 0.8 }] },
-  { id: 'conseillers', icon: '🧑‍💼', stat: 'cdr', fmt: (v) => `−${Math.round(v * 100)} % recharge`,
-    lv: [{ name: 'Conseiller', cost: 300, v: 0.1 }, { name: 'Équipe de conseillers', cost: 650, v: 0.2 }, { name: 'Think tank', cost: 1100, v: 0.3 }] },
-  { id: 'bus', icon: '🚌', stat: 'spd', fmt: (v) => `+${Math.round(v * 100)} % vitesse`,
-    lv: [{ name: 'Vélo', cost: 200, v: 0.08 }, { name: 'Bus de campagne', cost: 450, v: 0.14 }, { name: 'Jet privé', cost: 800, v: 0.2 }] },
+  { id: 'portevoix', cat: 'dps', icon: '📣', stat: 'dmg', fmt: (v) => `+${pct(v)} % dégâts`,
+    lv: mkLv(['Porte-voix', 'Mégaphone', 'Sono', 'Concert géant', 'Stade plein'], [0.12, 0.25, 0.42, 0.62, 0.85]) },
+  { id: 'agence', cat: 'dps', icon: '📰', stat: 'as', fmt: (v) => `+${pct(v)} % vitesse d’attaque`,
+    lv: mkLv(['Attaché de presse', 'Agence de com', 'Cabinet de conseil', 'Agence de pub', 'Empire médiatique'], [0.15, 0.3, 0.5, 0.72, 1]) },
+  { id: 'cm', cat: 'dps', icon: '📱', stat: 'range', fmt: (v) => `+${v} portée, +${Math.round(v / 4)} % dégâts`,
+    lv: mkLv(['Community manager', 'Équipe digitale', 'Armée de trolls', 'Influenceurs', 'Algorithme'], [30, 60, 95, 135, 180]) },
+  { id: 'media', cat: 'tank', icon: '🎙️', stat: 'hp', fmt: (v) => `+${pct(v)} % crédibilité max`,
+    lv: mkLv(['Media training', 'Coach vocal', 'Storytelling', 'Plan com de crise', 'Téflon'], [0.15, 0.3, 0.5, 0.75, 1.05]) },
+  { id: 'secu', cat: 'tank', icon: '🛡️', stat: 'armor', fmt: (v) => `−${pct(v)} % dégâts subis`,
+    lv: mkLv(['Garde du corps', 'Service d’ordre', 'Avocat', 'Cabinet d’avocats', 'Immunité'], [0.06, 0.12, 0.18, 0.24, 0.3], [300, 550, 900, 1400, 2100]) },
+  { id: 'cure', cat: 'tank', icon: '🧘', stat: 'regen', fmt: (v) => `+${(v * 100).toFixed(1)} % crédibilité / s`,
+    lv: mkLv(['Gourde', 'Nuit de sommeil', 'Cure thermale', 'Séminaire au vert', 'Retraite spirituelle'], [0.005, 0.01, 0.016, 0.023, 0.03], [200, 400, 700, 1100, 1700]) },
+  { id: 'plateau', cat: 'sorts', icon: '📺', stat: 'ap', fmt: (v) => `+${pct(v)} % puissance des sorts`,
+    lv: mkLv(['Passage radio', 'Plateau télé', 'Débat du 20 h', 'Grand oral', 'Débat de l’entre-deux-tours'], [0.15, 0.32, 0.55, 0.8, 1.1]) },
+  { id: 'conseillers', cat: 'recharge', icon: '🧑‍💼', stat: 'cdr', fmt: (v) => `−${pct(v)} % temps de recharge`,
+    lv: mkLv(['Conseiller', 'Équipe de conseillers', 'Think tank', 'Cabinet fantôme', 'Spin doctors'], [0.06, 0.12, 0.18, 0.24, 0.3]) },
+  { id: 'bus', cat: 'vitesse', icon: '🚌', stat: 'spd', fmt: (v) => `+${pct(v)} % vitesse de déplacement`,
+    lv: mkLv(['Vélo', 'Scooter', 'Bus de campagne', 'TGV', 'Jet privé'], [0.06, 0.1, 0.14, 0.18, 0.22], [150, 300, 550, 900, 1400]) },
   // améliorations collectives des militants (niveau max 3 par camp, de plus en plus chères)
-  { id: 'tracts', team: true, key: 'hp', name: 'Tracts', icon: '📄', cost: 250, desc: 'Tous vos militants : +20 % PV' },
-  { id: 'banderoles', team: true, key: 'dmg', name: 'Banderoles', icon: '🚩', cost: 250, desc: 'Tous vos militants : +20 % dégâts' },
-  { id: 'baskets', team: true, key: 'spd', name: 'Baskets', icon: '👟', cost: 200, desc: 'Tous vos militants : +12 % vitesse' },
+  { id: 'tracts', cat: 'militants', team: true, key: 'hp', name: 'Tracts', icon: '📄', cost: 250, desc: 'Tous vos militants : +20 % PV' },
+  { id: 'banderoles', cat: 'militants', team: true, key: 'dmg', name: 'Banderoles', icon: '🚩', cost: 250, desc: 'Tous vos militants : +20 % dégâts' },
+  { id: 'baskets', cat: 'militants', team: true, key: 'spd', name: 'Baskets', icon: '👟', cost: 200, desc: 'Tous vos militants : +12 % vitesse' },
 ];
 const ITEM_BY_ID = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
 // un id répété = monter cet objet d'un niveau
 const BUILD_ORDER = {
-  mage: ['plateau', 'conseillers', 'tracts', 'plateau', 'media', 'bus', 'plateau', 'conseillers'],
-  combattant: ['portevoix', 'media', 'tracts', 'portevoix', 'media', 'bus', 'portevoix', 'media'],
-  tireur: ['agence', 'portevoix', 'banderoles', 'agence', 'portevoix', 'cm', 'agence', 'portevoix'],
-  assassin: ['portevoix', 'bus', 'plateau', 'portevoix', 'plateau', 'media', 'portevoix', 'plateau'],
-  soutien: ['media', 'conseillers', 'tracts', 'plateau', 'baskets', 'conseillers', 'media', 'plateau'],
-  tank: ['media', 'tracts', 'media', 'conseillers', 'banderoles', 'media', 'portevoix', 'bus'],
+  mage: ['plateau', 'conseillers', 'tracts', 'plateau', 'media', 'plateau', 'bus', 'conseillers', 'plateau', 'secu', 'media', 'plateau', 'conseillers', 'media'],
+  combattant: ['portevoix', 'media', 'secu', 'portevoix', 'media', 'tracts', 'bus', 'portevoix', 'secu', 'media', 'portevoix', 'cure', 'secu', 'media'],
+  tireur: ['agence', 'portevoix', 'banderoles', 'agence', 'portevoix', 'cm', 'agence', 'portevoix', 'bus', 'agence', 'cm', 'portevoix', 'agence', 'cm'],
+  assassin: ['portevoix', 'bus', 'plateau', 'portevoix', 'plateau', 'conseillers', 'portevoix', 'plateau', 'media', 'portevoix', 'plateau', 'bus', 'conseillers'],
+  soutien: ['media', 'conseillers', 'tracts', 'cure', 'plateau', 'baskets', 'conseillers', 'media', 'plateau', 'cure', 'conseillers', 'media', 'plateau'],
+  tank: ['media', 'secu', 'tracts', 'media', 'secu', 'cure', 'conseillers', 'media', 'secu', 'banderoles', 'media', 'secu', 'cure'],
 };
 
 const BUREAU_NAMES = [
