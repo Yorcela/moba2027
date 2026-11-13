@@ -274,7 +274,7 @@
     return `${base} · les attaques partent <b>toutes seules</b> sur l’ennemi à portée, et les sorts visent <b>automatiquement</b> ·
       sorts débloqués à ${CFG.unlock.Q} / ${CFG.unlock.W} / ${CFG.unlock.E} / ${CFG.unlock.R} % dans les sondages ·
       <kbd>Tab</kbd> verrouiller un candidat · <kbd>Entrée</kbd> récolter le camp le plus proche · <kbd>B</kbd> retour au QG ·
-      <kbd>P</kbd> boutique (<kbd>flèches</kbd> + <kbd>Entrée</kbd> pour acheter ou améliorer) · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause · <kbd>Maj</kbd>+sort : viser à la souris`;
+      <kbd>P</kbd> boutique (<kbd>flèches</kbd> + <kbd>Entrée</kbd> pour acheter ou améliorer) · <kbd>H</kbd> aide sur les statistiques · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause · <kbd>Maj</kbd>+sort : viser à la souris`;
   }
   renderMenu();
 
@@ -435,7 +435,8 @@
     if (e.target && e.target.tagName === 'SELECT') return;
     const code = e.code;
     if (code === 'Escape') {
-      if (shopOpen) toggleShop(false);
+      if (!$('#stats-help').classList.contains('hidden')) $('#stats-help').classList.add('hidden');
+      else if (shopOpen) toggleShop(false);
       else if (aimKey) aimKey = null;
       else if (online) { onlineMenu = !onlineMenu; showPause(onlineMenu); }
       else { paused = !paused; showPause(paused); }
@@ -469,6 +470,7 @@
     }
     if (code === 'KeyB') act({ t: 'recall' });
     else if (code === 'KeyP') toggleShop();
+    else if (code === 'KeyH') $('#stats-help').classList.toggle('hidden');
     else if (code === 'Space') { cam.locked = !cam.locked; toast(cam.locked ? 'Caméra verrouillée' : 'Caméra libre (bords de l’écran)'); e.preventDefault(); }
     else if (code === 'KeyS' && !clavier) act({ t: 'stop' });
     else if (code === 'KeyX') act({ t: 'unlock' });
@@ -592,7 +594,7 @@
     el.classList.toggle('hidden', p.dead);
     const enemyMil = S.mil.some((m) => m.team !== p.team && !m.converted && U.dist(m, p) < 900);
     let tip;
-    if (S.t < 12) tip = `Votre QG est à ${p.team === 'gauche' ? 'l’ouest' : 'l’est'}. Votre voie : <b>${LANE_NAMES[p.lane]}</b>. Avancez <b>derrière vos militants</b>.`;
+    if (S.t < 12) tip = `Votre QG est à ${p.team === 'gauche' ? 'l’ouest' : 'l’est'}. Votre voie : <b>${LANE_NAMES[p.lane]}</b>. Avancez <b>derrière vos militants</b>. <b>H</b> : à quoi servent la crédibilité, le sondage et les autres statistiques.`;
     else if (enemyMil) tip = `Militants adverses en vue ! Approchez-vous : dès qu’ils sont dans votre cercle jaune, vos <b>polémiques partent toutes seules</b>. Chaque conversion vous fait monter dans les sondages : <b>${KEY_LABEL.Q}</b> se débloque à ${CFG.unlock.Q} %.`;
     else tip = `Les bureaux adverses tirent sur <b>vous</b> (cercle rouge), pas sur les militants : restez derrière eux. Près d’une mairie ou d’un meeting, <b>Entrée</b> pour récolter : ${CFG.campChannelOwn} s immobile de votre côté, ${CFG.campChannelFoe} s chez l’adversaire.`;
     $('#tips-text').innerHTML = tip;

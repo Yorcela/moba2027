@@ -410,6 +410,20 @@ const Game = (() => {
         S.fx.push({ type: 'heal', x: c.x + dx * k, y: c.y + dy * k, radius: ab.radius, team: c.team, hps: ab.hps * ap, until: S.t + ab.dur, t0: S.t });
         break;
       }
+      case 'cats': {
+        // 5 chats répartis sur les candidats adverses les plus proches du point visé (sinon sur des militants)
+        const enemy = TEAMS[c.team].enemy;
+        let foes = S.cands.filter((e) => e.team === enemy && !e.dead && U.dist(e, c) <= ab.range)
+          .sort((a, b) => Math.hypot(a.x - tx, a.y - ty) - Math.hypot(b.x - tx, b.y - ty)).slice(0, 2);
+        if (!foes.length) foes = S.mil.filter((m) => m.team === enemy && !m.converted && U.dist(m, c) <= ab.range).sort((a, b) => U.dist(a, c) - U.dist(b, c)).slice(0, ab.n);
+        if (!foes.length) return false;
+        for (let i = 0; i < ab.n; i++) {
+          const a = (i / ab.n) * Math.PI * 2;
+          S.proj.push({ kind: 'cat', src: c, team: c.team, x: c.x + Math.cos(a) * 30, y: c.y + Math.sin(a) * 30, target: foes[i % foes.length],
+            speed: ab.speed * (0.9 + 0.05 * i), dmg: ab.dmg * ap, ab, until: S.t + 5 });
+        }
+        break;
+      }
       case 'zone': {
         const k = Math.min(1, ab.range / Math.max(1, d));
         S.fx.push({ type: 'zone', x: c.x + dx * k, y: c.y + dy * k, radius: ab.radius, team: c.team, src: c, dps: ab.dps * ap, until: S.t + ab.dur, t0: S.t });
@@ -866,6 +880,20 @@ const Game = (() => {
   function updateProj(dt) {
     const keep = [];
     for (const p of S.proj) {
+      if (p.kind === 'cat') {
+        // le chat file vers sa cible ; si elle disparaît, il en cherche une autre à proximité
+        if (!alive(p.target)) {
+          const enemy = TEAMS[p.team].enemy;
+          p.target = nearestFoe({ x: p.x, y: p.y, team: p.team }, S.cands, 600) || nearestFoe({ x: p.x, y: p.y, team: p.team }, S.mil, 400);
+          if (!p.target) continue;
+        }
+        if (S.t > p.until) continue;
+        const t = p.target;
+        p.face = Math.atan2(t.y - p.y, t.x - p.x);
+        if (moveToward(p, t.x, t.y, p.speed, dt) || U.dist(p, t) < t.r + 6) { damage(p.src, t, p.dmg); afflict(p.src, t, p.ab); continue; }
+        keep.push(p);
+        continue;
+      }
       if (p.kind === 'atk') {
         const t = p.target;
         const alive = t.kind === 'cand' ? !t.dead : !t.converted && S.mil.includes(t);

@@ -82,6 +82,9 @@ const AI = (() => {
         case 'zone':
           ok = foe && fd < ab.range && (key !== 'R' || foeR < 0.7 || mode === 'fight');
           break;
+        case 'cats':
+          ok = foe && fd < ab.range * 0.9;
+          break;
         case 'selfheal':
           ok = hpR < 0.5;
           break;

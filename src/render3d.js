@@ -161,13 +161,6 @@ const R3 = (() => {
       } else if (b.crop === 0) {
         // blé moissonné : bottes de foin rondes couchées
         for (let k = 0; k < 3; k++) put(bales, nb++, b.x + (rnd() - 0.5) * b.w * 0.7, 6, b.y + (rnd() - 0.5) * b.h * 0.7, 6, 9, 6, 0, rnd() * 3, Math.PI / 2);
-      } else if (b.crop === 1) {
-        // prairie : quelques vaches
-        for (let k = 0; k < 2; k++) {
-          const x = b.x + (rnd() - 0.5) * b.w * 0.6, z = b.y + (rnd() - 0.5) * b.h * 0.6, a = rnd() * 6;
-          put(cows, nc, x, 7, z, 14, 8, 7, 0, a, 0);
-          put(spots, nc++, x + Math.cos(a) * 2, 8.5, z - Math.sin(a) * 2, 5, 5.5, 7.4, 0, a, 0);
-        }
       }
       // haie d'arbres sur un bord du champ
       const n = 1 + Math.floor(rnd() * 3);
@@ -180,6 +173,79 @@ const R3 = (() => {
     bales.count = nb; trunks.count = crowns.count = nt; cows.count = spots.count = nc;
     for (const im of [bales, trunks, crowns, cows, spots]) { im.castShadow = true; scene.add(im); }
     upgradeCountryside(fields, [trunks, crowns]);
+  }
+
+  // ── Animaux qui se baladent : vaches et moutons à la campagne, chiens et chats dans les quartiers résidentiels ──
+  const animals = [];
+  function voxCow() {
+    const g = new THREE.Group(), b = new THREE.Group(); g.add(b);
+    b.add(vbox(0xf4f1ea, 20, 11, 10, 0, 13, 0));
+    b.add(vbox(0x2a2a2a, 7, 7.5, 10.4, -3, 14, 0)); b.add(vbox(0x2a2a2a, 5, 5, 10.4, 6, 15, 0));
+    b.add(vbox(0xf4f1ea, 8, 8, 8, 13, 17, 0)); b.add(vbox(0xf2a8a8, 3, 4, 7, 17.5, 15, 0));
+    for (const s of [-1, 1]) { b.add(vbox(0xe8e0c8, 1.6, 3, 1.6, 12, 22, s * 3.5)); b.add(vbox(0x1b1b1b, 1, 1.4, 1, 16.6, 19, s * 2.4)); }
+    const legs = [];
+    for (const [x, z] of [[7, 3], [7, -3], [-7, 3], [-7, -3]]) { const l = vbox(0xf4f1ea, 3, 8, 3, x, 4, z); b.add(l); legs.push(l); }
+    return { g, legs, speed: 14, scale: 1 };
+  }
+  function voxSheep() {
+    const g = new THREE.Group(), b = new THREE.Group(); g.add(b);
+    b.add(vbox(0xf2efe4, 14, 10, 10, 0, 11, 0));
+    for (let i = 0; i < 5; i++) b.add(vbox(0xfaf8f0, 5, 4, 5, -5 + i * 2.5, 16.5, (i % 2 ? 2 : -2)));
+    b.add(vbox(0x2a2a2a, 6, 6, 6, 9, 13, 0));
+    for (const s of [-1, 1]) b.add(vbox(0x2a2a2a, 1.4, 1.6, 3, 9, 15, s * 3.6));
+    const legs = [];
+    for (const [x, z] of [[4, 3], [4, -3], [-4, 3], [-4, -3]]) { const l = vbox(0x2a2a2a, 2, 6, 2, x, 3, z); b.add(l); legs.push(l); }
+    return { g, legs, speed: 12, scale: 0.9 };
+  }
+  function voxDog(i) {
+    const cols = [0x9a6a3a, 0xd8b07a, 0x2a2a2a, 0xf2f2ee];
+    const c = cols[i % cols.length], g = new THREE.Group(), b = new THREE.Group(); g.add(b);
+    b.add(vbox(c, 13, 6, 6, 0, 8, 0));
+    b.add(vbox(c, 6, 6, 6, 7.5, 12, 0)); b.add(vbox(0x1b1b1b, 1.4, 1.4, 1.4, 11, 11.4, 0));
+    for (const s of [-1, 1]) { b.add(vbox(new THREE.Color(c).multiplyScalar(0.7).getHex(), 1.6, 4, 2, 6.5, 13, s * 3.4)); b.add(vbox(0x1b1b1b, 0.8, 1, 0.8, 10.6, 13.4, s * 1.6)); }
+    const tail = vbox(c, 1.6, 6, 1.6, -7, 11, 0); tail.rotation.z = 0.6; b.add(tail);
+    const legs = [];
+    for (const [x, z] of [[4.5, 2], [4.5, -2], [-4.5, 2], [-4.5, -2]]) { const l = vbox(c, 2, 5, 2, x, 2.5, z); b.add(l); legs.push(l); }
+    return { g, legs, speed: 30, scale: 0.9 };
+  }
+  function spawnAnimals(blocks) {
+    const rnd = Render.seeded(31415);
+    const rural = blocks.filter((b) => b.rural && (b.crop === 1 || b.farm)), resid = blocks.filter((b) => b.resid);
+    const add = (mk, list, n) => {
+      if (!list.length) return;
+      for (let i = 0; i < n; i++) {
+        const home = list[Math.floor(rnd() * list.length)], A = mk(i);
+        A.g.scale.setScalar(A.scale || 1);
+        A.x = home.x + (rnd() - 0.5) * 30; A.z = home.y + (rnd() - 0.5) * 30; A.tx = A.x; A.tz = A.z;
+        A.wait = rnd() * 4; A.list = list; A.ph = rnd() * 6; A.face = rnd() * 6;
+        A.g.position.set(A.x, 0, A.z);
+        scene.add(A.g); animals.push(A);
+      }
+    };
+    add(voxCow, rural, 16);
+    add(voxSheep, rural, 22);
+    add(voxDog, resid, 12);
+    add((i) => { const c = voxCat(i); return { g: c, legs: c.userData.legs, speed: 22, scale: 0.55 }; }, resid, 12);
+  }
+  function updateAnimals(dt) {
+    for (const A of animals) {
+      if (A.wait > 0) { A.wait -= dt; A.legs.forEach((l) => { l.rotation.z = 0; }); continue; }
+      const dx = A.tx - A.x, dz = A.tz - A.z, d = Math.hypot(dx, dz);
+      if (d < 2) {
+        // choisit une nouvelle destination dans une parcelle voisine de son quartier
+        const near = A.list.filter((b) => Math.hypot(b.x - A.x, b.y - A.z) < 220);
+        const b = near.length ? near[Math.floor(Math.random() * near.length)] : A.list[0];
+        A.tx = b.x + (Math.random() - 0.5) * 40; A.tz = b.y + (Math.random() - 0.5) * 40;
+        A.wait = 1 + Math.random() * 5;
+        continue;
+      }
+      const st = Math.min(d, A.speed * dt);
+      A.x += (dx / d) * st; A.z += (dz / d) * st;
+      A.face = Math.atan2(dz, dx);
+      A.ph += dt * A.speed * 0.5;
+      A.g.position.set(A.x, 0, A.z); A.g.rotation.y = -A.face;
+      A.legs.forEach((l, i) => { l.rotation.z = Math.sin(A.ph + (i % 2) * Math.PI) * 0.5; });
+    }
   }
 
   // ── Kits Kenney (CC0) : chargement et instanciation génériques ──
@@ -335,6 +401,7 @@ const R3 = (() => {
     const blocks = Render.blockList();
     buildCountryside(blocks.filter((b) => b.rural));
     buildResidential(blocks.filter((b) => b.resid && !b.park));
+    spawnAnimals(blocks);
     const houses = blocks.filter((b) => !b.park && !b.rural && !b.resid);
     const parks = blocks.filter((b) => b.park);
     const im = new THREE.InstancedMesh(G.box, new THREE.MeshStandardMaterial({ roughness: 0.85 }), houses.length);
@@ -996,7 +1063,23 @@ const R3 = (() => {
     bubbleTex.set(key, b);
     return b;
   }
+  // chat voxel (lâcher de chats) : corps, tête, oreilles, queue dressée
+  function voxCat(colIdx) {
+    const cols = [0xe8913a, 0x2a2a2a, 0xf2f2ee, 0x9a8a7a, 0xd8b07a];
+    const c = cols[colIdx % cols.length], g = new THREE.Group(), b = new THREE.Group(); g.add(b);
+    b.add(vbox(c, 16, 9, 8, 0, 9, 0));
+    b.add(vbox(c, 9, 8, 8, 10, 14, 0));
+    for (const s of [-1, 1]) { b.add(vbox(c, 2.4, 3, 2.4, 12, 19.5, s * 2.6)); b.add(vbox(0x1b1b1b, 1, 1.4, 1, 14.6, 15, s * 2)); }
+    b.add(vbox(0xf2a0aa, 1.2, 1, 1.4, 14.7, 12.6, 0));
+    const tail = vbox(c, 2.4, 12, 2.4, -9, 16, 0); tail.rotation.z = 0.35; b.add(tail);
+    const legs = [];
+    for (const [x, z] of [[5, 2.5], [5, -2.5], [-5, 2.5], [-5, -2.5]]) { const l = vbox(c, 2.6, 6, 2.6, x, 3, z); b.add(l); legs.push(l); }
+    g.userData = { cat: true, legs, ph: Math.random() * 6 };
+    return g;
+  }
+  let catN = 0;
   function buildProj(p) {
+    if (p.kind === 'cat') return voxCat(catN++);
     if (p.word && p.src && p.src.kind === 'cand') {
       const spell = p.kind === 'shot';
       const b = bubble(p.word, p.team, spell);
@@ -1032,6 +1115,7 @@ const R3 = (() => {
 
   // ── Synchronisation avec l'état du jeu ──
   function sync(S, dt, t) {
+    updateAnimals(Math.min(dt, 0.1));
     if (S !== lastS) { for (const o of live.values()) scene.remove(o); live.clear(); lastS = S; }
     const seen = new Set();
     const ensure = (e, build) => {
@@ -1047,7 +1131,16 @@ const R3 = (() => {
         if (!c.dead) animateCand(o, c, S, dt, t);
       }
       for (const m of S.mil) animateMil(ensure(m, buildMilitant), m, dt);
-      for (const p of S.proj) { const o = ensure(p, buildProj); o.position.set(p.x, o.userData.bubble ? 70 : p.bureau ? 50 : 55, p.y); }
+      for (const p of S.proj) {
+        const o = ensure(p, buildProj);
+        if (o.userData.cat) {
+          const u = o.userData; u.ph += dt * 18;
+          o.position.set(p.x, Math.abs(Math.sin(u.ph)) * 4, p.y); o.rotation.y = -(p.face || 0);
+          u.legs.forEach((l, i) => { l.rotation.z = Math.sin(u.ph + (i % 2) * Math.PI) * 0.7; });
+          continue;
+        }
+        o.position.set(p.x, o.userData.bubble ? 70 : p.bureau ? 50 : 55, p.y);
+      }
       for (const f of S.fx) {
         const o = ensure(f, buildFx);
         o.position.set(f.x, 0, f.y);

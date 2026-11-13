@@ -182,6 +182,13 @@
 
   #toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); padding: 8px 14px; border-radius: 10px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   #toast.show { opacity: 1; }
+  #stats-help { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.55); z-index: 30; }
+  #stats-help.hidden { display: none; }
+  .help-box { max-width: 980px; max-height: 86vh; overflow: auto; padding: 18px 22px; }
+  .help-box h2 { margin: 0 0 12px; } .help-box h2 small { font-size: 13px; color: var(--mute); font-weight: 600; }
+  .help-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+  .help-grid > div { background: #161c24; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.45; color: #c9d1db; }
+  .help-grid > div > b:first-child { display: block; color: #fff; font-size: 14px; margin-bottom: 4px; }
   #pause { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); }
 
   #end { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(5,7,10,.82); padding: 16px; }
@@ -243,7 +250,7 @@
         <div id="me-name"></div>
         <div id="me-poll"></div>
         <div class="hpbar"><div id="me-hp"></div></div>
-        <div id="me-hpt"></div>
+        <div id="me-hpt" title="Crédibilité : vos points de vie. À 0, scandale et retour au QG. (H : aide)"></div>
         <div id="me-status"></div>
       </div>
     </div>
@@ -254,7 +261,7 @@
       <button id="btn-shop">Boutique (P)</button>
     </div>
   </div>
-  <div id="help" class="panel">Convertissez les militants adverses avant qu’ils ne votent. Les bureaux de vote adverses vous tirent dessus : avancez derrière vos militants.</div>
+  <div id="help" class="panel">Convertissez les militants adverses avant qu’ils ne votent. Les bureaux de vote adverses vous tirent dessus : avancez derrière vos militants. <b>H</b> : comprendre les statistiques.</div>
   <div id="tips" class="panel hidden"><span id="tips-text"></span><button id="tips-close" title="Masquer les astuces">✕</button></div>
   <div id="respawn" class="panel hidden">
     <div class="rs-t">Scandale !</div>
@@ -277,6 +284,23 @@
 <div id="pause" class="hidden">
   <div class="pause-box"><div id="pause-t">Pause</div>
     <div class="on-row"><button class="btn gold" id="btn-resume">Reprendre (Échap)</button><button class="btn" id="btn-quit">Quitter la partie</button></div>
+  </div>
+</div>
+<div id="stats-help" class="hidden">
+  <div class="help-box panel">
+    <h2>Comprendre les statistiques <small>(H pour fermer)</small></h2>
+    <div class="help-grid">
+      <div><b>❤️ Crédibilité</b>Vos points de vie. Chaque polémique (attaque, sort) adverse la fait baisser. À 0, c’est le <b>scandale</b> : retour au QG, avec un délai d’1 s par point de sondage (3 à 15 s), et 15 % de votre score perdu. Elle remonte vite au QG et doucement ailleurs (plus avec les mesures de récupération).</div>
+      <div><b>📊 Sondage (%)</b>Votre score dans les intentions de vote. Tout le monde part de 0 %. On gagne des indécis en convertissant des militants, en faisant voter les siens, en conquérant des bureaux et en récoltant les mairies. Les polémiques volent des points à la cible. Il débloque les sorts (5, 10, 15 et 30 %) et décide du vainqueur à la fin du temps.</div>
+      <div><b>💪 Puissance (×)</b>Multiplicateur tiré du sondage : de ×0,85 à 0 % jusqu’à ×1,4. Il s’applique à la crédibilité max, aux dégâts et aux sorts.</div>
+      <div><b>💶 Dons (€)</b>L’argent de la campagne : +1,5 €/s, plus les conversions, les KO et les meetings. Il sert à acheter et améliorer des mesures et du matériel de campagne au QG (P).</div>
+      <div><b>✍️ Parrainages</b>Gagnés dans les mairies et grâce au Sénat. Ils comptent pour le prestige du camp et rapportent aussi du sondage.</div>
+      <div><b>⚔️ Dégâts / vitesse d’attaque / portée</b>Les attaques automatiques partent seules sur l’ennemi dans votre cercle jaune (la portée). La vitesse d’attaque règle leur cadence.</div>
+      <div><b>✨ Puissance des sorts / recharge</b>Augmente les dégâts, soins et boucliers des sorts ; la recharge raccourcit le délai entre deux utilisations. Toutes les recharges sont remises à zéro au scandale.</div>
+      <div><b>🛡️ Dégâts subis / récupération</b>Les mesures de résistance réduisent les dégâts reçus (jusqu’à −45 %) et font regagner de la crédibilité chaque seconde.</div>
+      <div><b>🎭 Classes</b><b>Tank</b> (voie de l’Assemblée) : solide, contrôle et protège. <b>DPS</b> (avenue de l’Élysée) : fait mal. <b>Soutien</b> (voie du Sénat) : soigne et protège. Les neutres sont 12 % plus faibles.</div>
+      <div><b>🏆 Gagner</b>L’Élysée (16 bulletins) <b>et</b> la majorité à l’Assemblée ou au Sénat (10 bulletins). Vos militants votent après avoir conquis les bureaux adverses de leur voie. Sinon, à la fin du temps, le premier des sondages l’emporte pour son camp.</div>
+    </div>
   </div>
 </div>
 <div id="toast"></div>

@@ -262,7 +262,7 @@ function snapshot(room) {
   const mil = S.mil.map((m) => [m.id, r1(m.x), r1(m.y), Math.round(m.hp), Math.round(m.maxHp),
     (m.team === 'droite' ? 1 : 0) | (m.ranged ? 2 : 0) | (m.converted ? 4 : 0) | (m.voting ? 8 : 0) | (m.target && m.atkCd > 0.8 ? 16 : 0)]);
   const proj = S.proj.map((p) => [oid(p), p.kind === 'shot' ? 1 : 0, r1(p.x), r1(p.y), p.team === 'droite' ? 1 : 0, p.word || '', p.width || 0,
-    (p.bureau ? 1 : 0) | (p.small ? 2 : 0) | (p.src && p.src.kind === 'cand' ? 4 : 0)]);
+    (p.bureau ? 1 : 0) | (p.small ? 2 : 0) | (p.src && p.src.kind === 'cand' ? 4 : 0) | (p.kind === 'cat' ? 8 : 0), r2(p.face || 0)]);
   const fx = S.fx.map((f) => [oid(f), FX_TYPES.indexOf(f.type), r1(f.x), r1(f.y), Math.round(f.radius), f.team === 'droite' ? 1 : 0,
     r2(f.t0), r2(f.until || 0), r2(f.at || 0), (f.done ? 1 : 0) | (f.heal ? 2 : 0) | (f.soft ? 4 : 0)]);
   const floats = [];

@@ -98,7 +98,7 @@ const CANDIDATES = [
       Q: { name: 'Discours', type: 'skillshot', cd: 6, range: 900, dmg: 85, speed: 950, width: 34, desc: 'Un discours en ligne droite.' },
       W: { name: 'Rassemblement', type: 'nova', cd: 11, radius: 250, dmg: 60, weaken: { pct: 0.25, dur: 4 }, desc: 'Dégâts autour de soi et affaiblit les ennemis (−25 %).' },
       E: { name: 'Tournée', type: 'dash', cd: 12, range: 380, radius: 150, dmg: 60, slow: 0.3, slowDur: 1.5, desc: 'Fonce et frappe à l’arrivée.' },
-      R: { name: 'Second souffle', type: 'regen', cd: 70, pct: 0.75, dur: 10, buff: { dmg: 0.25, dur: 10 }, desc: 'Récupère 75 % de sa crédibilité en 10 s, +25 % dégâts.' },
+      R: { name: 'Lâcher de chats', type: 'cats', cd: 50, range: 1000, n: 5, dmg: 45, speed: 620, slow: 0.3, slowDur: 1.5, desc: 'Lâche 5 chats qui foncent sur les adversaires les plus proches : griffures et ralentissement.' },
     },
   },
   {

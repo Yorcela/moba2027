@@ -41,13 +41,15 @@ const Render = (() => {
   // la carte est découpée en tranches : ville (nord et sud), quartiers résidentiels (haut des camps),
   // campagne (bas des camps) — symétrique entre gauche et droite
   const ZONE_BY_SECTOR = { 'Palais-Bourbon': 'ville', Luxembourg: 'ville', Belleville: 'resid', Passy: 'resid', 'Ménilmontant': 'campagne', Auteuil: 'campagne' };
-  const ZONE_TINT = { ville: null, resid: 'rgba(120,150,90,0.30)', campagne: 'rgba(96,130,64,0.55)' };
+  // même herbe pour les quartiers résidentiels et la campagne : un sol continu
+  const GRASS = '#7f9d58';
+  const ZONE_TINT = { ville: null, resid: GRASS, campagne: GRASS };
   function zoneAt(x, y) {
     const a = ((Math.atan2(-y, x) * 180) / Math.PI + 360) % 360;
     const sc = MAP.sectors.find((q) => a >= q.a0 && a < q.a1) || MAP.sectors[0];
     return ZONE_BY_SECTOR[sc.name] || 'ville';
   }
-  const CROPS = ['#cdb45a', '#7fa64a', '#8a6a48', '#a3b85a']; // blé, prairie, labours, colza
+  const CROPS = ['#c2b464', '#86a85a', '#94775a', '#a9b862']; // blé, prairie, labours, maïs (tons proches de l'herbe)
   function blockList() {
     if (blocksCache) return blocksCache;
     const rnd = seeded(2027);
@@ -64,7 +66,8 @@ const Render = (() => {
         const b = { x: cx, y: cy, w, h, park: rnd() < 0.12, hgt: 30 + rnd() * 80 };
         const hsh = Math.abs(Math.sin(cx * 12.9898 + cy * 78.233) * 43758.5453) % 1;
         b.zone = zoneAt(cx, cy);
-        if (b.zone === 'campagne') { b.rural = true; b.park = false; b.crop = Math.floor(hsh * 4); b.farm = hsh > 0.72; }
+        // campagne : les champs couvrent presque toute la parcelle ; peu de fermes
+        if (b.zone === 'campagne') { b.rural = true; b.park = false; b.crop = Math.floor(hsh * 4); b.farm = hsh > 0.93; b.w = b.h = 66; }
         else if (b.zone === 'resid') { b.resid = true; b.park = hsh < 0.08; }
         out.push(b);
       }
@@ -105,17 +108,17 @@ const Render = (() => {
     for (const b of blockList()) {
       if (b.rural) {
         // champ cultivé, avec ses sillons
-        g.fillStyle = CROPS[b.crop];
-        g.fillRect(b.x - b.w / 2 - 6, b.y - b.h / 2 - 6, b.w + 12, b.h + 12);
-        g.strokeStyle = 'rgba(0,0,0,0.12)'; g.lineWidth = 2;
-        for (let k = -b.w / 2; k < b.w / 2 + 6; k += 9) { g.beginPath(); g.moveTo(b.x + k, b.y - b.h / 2 - 6); g.lineTo(b.x + k, b.y + b.h / 2 + 6); g.stroke(); }
+        g.fillStyle = b.farm ? GRASS : CROPS[b.crop];
+        g.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h);
+        if (!b.farm && b.crop !== 1) {
+          g.strokeStyle = 'rgba(0,0,0,0.08)'; g.lineWidth = 2;
+          for (let k = -b.w / 2 + 4; k < b.w / 2; k += 9) { g.beginPath(); g.moveTo(b.x + k, b.y - b.h / 2); g.lineTo(b.x + k, b.y + b.h / 2); g.stroke(); }
+        }
         if (blocks && b.farm) { g.fillStyle = '#b5523a'; g.fillRect(b.x - 10, b.y - 8, 20, 16); }
         continue;
       }
       if (b.resid && !b.park) {
-        // pavillons avec jardin
-        g.fillStyle = 'rgba(140,175,100,0.6)';
-        roundRect(g, b.x - b.w / 2 - 4, b.y - b.h / 2 - 4, b.w + 8, b.h + 8, 6); g.fill();
+        // pavillons posés directement sur l'herbe du quartier
         if (blocks) { g.fillStyle = '#c9b8a0'; for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) g.fillRect(b.x + dx * b.w / 4 - 7, b.y + dy * b.h / 4 - 7, 14, 14); }
         continue;
       }

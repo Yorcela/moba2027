@@ -115,7 +115,7 @@ Les mécaniques de sorts disponibles :
 - boucliers : sur soi ou de zone ;
 - affaiblissements (−dégâts et −vitesse), brûlures, ralentissements, étourdissements, accélérations.
 
-Chaque candidat a des noms de sorts qui lui sont propres. Les 6 premiers ont des kits sur mesure.
+Chaque candidat a des noms de sorts qui lui sont propres. Les 6 premiers ont des kits sur mesure. Le R de Marine Le Pen, « Lâcher de chats », envoie 5 chats sur les adversaires les plus proches.
 
 | Gauche | Droite | Neutres |
 |---|---|---|
@@ -135,6 +135,7 @@ Le jeu se joue entièrement au clavier ; la souris est facultative. Le menu prop
 - **Tab** : verrouiller le candidat adverse le plus proche (prioritaire pour les attaques et les sorts). **X** : libérer la cible.
 - **Entrée** : récolter la mairie ou le meeting le plus proche.
 - **B** : retour au QG. **P** : boutique, puis **1** à **9** pour acheter.
+- **H** : aide sur les statistiques (crédibilité, sondage, puissance, dons, parrainages…).
 - **Espace** : caméra libre. **Molette** : zoom. **Échap** : pause en solo ; en ligne, menu pour quitter (la partie continue).
 
 Quand votre candidat est mis KO par un scandale, un grand compte à rebours s'affiche au centre de l'écran jusqu'à son retour. Le délai de retour de chaque candidat apparaît aussi dans le sondage.
@@ -164,5 +165,6 @@ Tous les équilibrages se règlent dans `CFG` (`src/data.js`).
 - Scènes de meeting : *Stage* et *Concert Stage* (×2) de **iPoly3D** (CC0, via Poly Pizza), recolorées en violet, dans `assets/ipoly3d/`.
 - Quartiers résidentiels : [City Kit (Suburban)](https://kenney.nl/assets/city-kit-suburban) de **Kenney** (CC0), toits recolorés en 4 variantes.
 - Campagne : [Nature Kit](https://kenney.nl/assets/nature-kit) et [Platformer Kit](https://kenney.nl/assets/platformer-kit) de **Kenney** (CC0) : cultures, arbres, clôtures, haies, rochers, tonneaux, caisses.
+- Des vaches et des moutons se baladent à la campagne, des chiens et des chats dans les quartiers résidentiels (voxel, en code).
 - La carte est découpée en tranches symétriques : ville au nord et au sud, quartiers résidentiels en haut de chaque camp, campagne en bas. Les fermes, les vaches et les bottes de foin sont construites en code.
 - Les 33 candidats, les militants et le public des meetings (hommes et femmes) sont en **style voxel**, construits en code d'après les photos des candidats : coupe et couleur des cheveux, barbe, lunettes, tenue.
