@@ -63,7 +63,7 @@ const DIFFICULTY = {
 const CANDIDATES = [
   {
     id: 'melenchon', name: 'Jean-Luc Mélenchon', initials: 'JLM', party: 'LFI', team: 'gauche', role: 'mage', fem: false,
-    hp: 520, ad: 32, range: 520, as: 0.72, spd: 300,
+    hp: 520, ad: 32, range: 380, as: 0.72, spd: 300,
     abilities: {
       Q: { name: 'Tirade', type: 'skillshot', cd: 6, range: 950, dmg: 80, speed: 950, width: 34, dot: { dps: 14, dur: 3 }, desc: 'Projectile enflammé : dégâts puis brûlure pendant 3 s.' },
       W: { name: 'Bain de foule', type: 'nova', cd: 10, radius: 260, dmg: 75, slow: 0.35, slowDur: 2, desc: 'Dégâts autour de soi et ralentissement.' },
@@ -73,7 +73,7 @@ const CANDIDATES = [
   },
   {
     id: 'glucksmann', name: 'Raphaël Glucksmann', initials: 'RG', party: 'Place publique', team: 'gauche', role: 'tireur', fem: false,
-    hp: 520, ad: 48, range: 620, as: 0.9, spd: 300,
+    hp: 520, ad: 48, range: 450, as: 0.9, spd: 300,
     abilities: {
       Q: { name: 'Tribune européenne', type: 'skillshot', cd: 7, range: 1050, dmg: 85, speed: 1100, width: 30, pierce: true, desc: 'Traverse toutes les cibles sur sa ligne.' },
       W: { name: 'Plaidoyer', type: 'shield', cd: 14, radius: 0, amount: 150, dur: 4, as: 0.5, desc: 'Bouclier sur soi et +50 % vitesse d’attaque.' },
@@ -83,7 +83,7 @@ const CANDIDATES = [
   },
   {
     id: 'tondelier', name: 'Marine Tondelier', initials: 'MT', party: 'Les Écologistes', team: 'gauche', role: 'soigneur', fem: true,
-    hp: 600, ad: 30, range: 500, as: 0.8, spd: 310,
+    hp: 600, ad: 30, range: 360, as: 0.8, spd: 310,
     abilities: {
       Q: { name: 'Tract vert', type: 'skillshot', cd: 7, range: 900, dmg: 65, speed: 900, width: 36, slow: 0.4, slowDur: 2, desc: 'Ralentit fortement la cible touchée.' },
       W: { name: 'Coulée verte', type: 'heal', cd: 13, range: 700, radius: 230, hps: 34, dur: 4, desc: 'Zone qui soigne les alliés pendant 4 s.' },
@@ -93,7 +93,7 @@ const CANDIDATES = [
   },
   {
     id: 'lepen', name: 'Marine Le Pen', initials: 'MLP', party: 'RN', team: 'droite', role: 'colosse', fem: true,
-    hp: 640, ad: 38, range: 440, as: 0.8, spd: 305,
+    hp: 640, ad: 38, range: 300, as: 0.8, spd: 305,
     abilities: {
       Q: { name: 'Discours', type: 'skillshot', cd: 6, range: 900, dmg: 85, speed: 950, width: 34, desc: 'Un discours en ligne droite.' },
       W: { name: 'Rassemblement', type: 'nova', cd: 11, radius: 250, dmg: 60, weaken: { pct: 0.25, dur: 4 }, desc: 'Dégâts autour de soi et affaiblit les ennemis (−25 %).' },
@@ -103,7 +103,7 @@ const CANDIDATES = [
   },
   {
     id: 'philippe', name: 'Édouard Philippe', initials: 'EP', party: 'Horizons', team: 'droite', role: 'assassin', fem: false,
-    hp: 540, ad: 44, range: 460, as: 0.85, spd: 320,
+    hp: 540, ad: 44, range: 320, as: 0.85, spd: 320,
     abilities: {
       Q: { name: 'Note technique', type: 'skillshot', cd: 6, range: 900, dmg: 80, speed: 1100, width: 30, slow: 0.25, slowDur: 1.5, desc: 'Projectile rapide qui ralentit.' },
       W: { name: 'Course de fond', type: 'selfheal', cd: 14, pct: 0.25, haste: 0.3, dur: 2, desc: 'Se soigne de 25 % et accélère.' },
@@ -113,7 +113,7 @@ const CANDIDATES = [
   },
   {
     id: 'retailleau', name: 'Bruno Retailleau', initials: 'BR', party: 'LR', team: 'droite', role: 'bastion', fem: false,
-    hp: 720, ad: 34, range: 430, as: 0.75, spd: 300,
+    hp: 720, ad: 34, range: 290, as: 0.75, spd: 300,
     abilities: {
       Q: { name: 'Rappel à l’ordre', type: 'skillshot', cd: 9, range: 850, dmg: 65, speed: 950, width: 36, stun: 1.0, desc: 'Étourdit la première cible touchée.' },
       W: { name: 'Fermeté', type: 'shield', cd: 13, radius: 0, amount: 260, dur: 4, desc: 'Gros bouclier sur soi.' },
@@ -208,9 +208,9 @@ const ROLE_NAMES = Object.fromEntries(Object.entries(ARCH).map(([k, a]) => [k, a
 const LANE_NAMES = { top: 'Voie de l’Assemblée', mid: 'Avenue de l’Élysée', bot: 'Voie du Sénat' };
 // statistiques de base par classe
 const CLASS_STATS = {
-  tank: { hp: 700, ad: 34, range: 430, as: 0.75, spd: 300 },
-  dps: { hp: 530, ad: 44, range: 560, as: 0.85, spd: 305 },
-  soutien: { hp: 600, ad: 30, range: 500, as: 0.8, spd: 310 },
+  tank: { hp: 700, ad: 34, range: 290, as: 0.75, spd: 300 },
+  dps: { hp: 530, ad: 44, range: 400, as: 0.85, spd: 305 },
+  soutien: { hp: 600, ad: 30, range: 360, as: 0.8, spd: 310 },
 };
 const NEUTRAL_MALUS = 0.88; // les candidats neutres ou inclassables sont plus faibles
 
