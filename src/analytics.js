@@ -2,9 +2,8 @@
 // ─── Statistiques : identifiant anonyme, parties solo, Google Analytics, page des stats ───
 // - Un identifiant aléatoire (localStorage) compte les joueurs uniques, sans donnée personnelle.
 // - Les parties solo sont signalées au serveur de jeu (les parties en ligne y sont déjà enregistrées).
-// - Google Analytics n'est chargé qu'avec l'accord du visiteur (bandeau), et seulement si
-//   window.GA_ID est renseigné dans index.html : un conteneur Google Tag Manager (GTM-…)
-//   ou directement une mesure Google Analytics 4 (G-…).
+// - Google Analytics : la balise est dans le <head> d'index.html, en Consent Mode v2
+//   (refusé par défaut, sans cookie) ; le bandeau met à jour le consentement.
 const Analytics = (() => {
   const $ = (s) => document.querySelector(s);
   const store = {
@@ -31,43 +30,28 @@ const Analytics = (() => {
     } catch (e) { /* hors ligne */ }
   }
 
-  // ── Google Analytics (avec consentement) ──
-  const GA_ID = typeof window.GA_ID === 'string' && /^(G|GTM)-[A-Z0-9]+$/.test(window.GA_ID) ? window.GA_ID : '';
-  const GTM = GA_ID.startsWith('GTM-');
-  let gaOn = false;
-  function loadGA() {
-    if (!GA_ID || gaOn) return;
-    gaOn = true;
-    // balise Google fournie par GA4, chargée telle quelle (mais seulement après consentement)
-    window.dataLayer = window.dataLayer || [];
-    window.gtag = function () { window.dataLayer.push(arguments); };
-    window.gtag('js', new Date());
-    if (!GTM) window.gtag('config', GA_ID); // avec un conteneur GTM-…, la configuration GA4 est dans le conteneur
-    const s = document.createElement('script');
-    s.async = true; s.src = 'https://www.googletagmanager.com/' + (GTM ? 'gtm.js' : 'gtag/js') + '?id=' + GA_ID;
-    document.head.appendChild(s);
-  }
+  // ── Google Analytics : bandeau et mise à jour du consentement (Consent Mode v2) ──
+  const GA_ID = typeof window.GA_ID === 'string' ? window.GA_ID : '';
+  const gtag = (...a) => { if (typeof window.gtag === 'function') window.gtag(...a); };
   function consent() { return store.get('moba2027-consent'); }
   function setConsent(yes) {
     store.set('moba2027-consent', yes ? 'oui' : 'non');
     const b = $('#consent'); if (b) b.remove();
-    if (yes) loadGA();
-    else if (gaOn) location.reload(); // retire le script de la page
+    gtag('consent', 'update', { analytics_storage: yes ? 'granted' : 'denied' });
   }
   function banner() {
     if (!GA_ID || consent() || $('#consent')) return;
     const b = document.createElement('div');
     b.id = 'consent'; b.setAttribute('role', 'dialog'); b.setAttribute('aria-label', 'Mesure d’audience');
-    b.innerHTML = `<p>On aimerait mesurer l’audience du jeu avec Google Analytics (visites, pays, appareil). Ça dépose des cookies : d’accord ?</p>
+    b.innerHTML = `<p>On aimerait mesurer l’audience du jeu avec Google Analytics (visites, pays, appareil). Ça dépose des cookies : d’accord ? Sans votre accord, seuls des signaux anonymes, sans cookie, sont envoyés.</p>
       <div><button type="button" id="consent-no">Refuser</button><button type="button" id="consent-yes">Accepter</button></div>`;
     document.body.appendChild(b);
     $('#consent-no').onclick = () => setConsent(false);
     $('#consent-yes').onclick = () => setConsent(true);
   }
-  if (consent() === 'oui') loadGA();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', banner); else banner();
-  // événements de jeu envoyés à GA4
-  function event(name, params) { if (gaOn && window.gtag) window.gtag('event', name, params || {}); }
+  // événements de jeu envoyés à GA4 (anonymes tant que le visiteur n'a pas accepté)
+  function event(name, params) { gtag('event', name, params || {}); }
 
   // ── Parties ──
   let soloRun = null;

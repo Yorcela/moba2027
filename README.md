@@ -80,9 +80,13 @@ Supabase, ou tout autre Postgres, marche de la même façon. L’offre gratuite 
 
 ### Google Analytics
 
-`index.html` contient `window.GA_ID = 'GTM-MDHG2M87'`, la balise Google de la propriété GA4 `G-N729Y7LPNV`, chargée comme Google l’indique (`gtm.js` et `gtag('js', …)`). Un ID GA4 direct (`G-…`) marche aussi. Un bandeau demande l’accord du visiteur, comme l’exige la CNIL, et Google Analytics n’est chargé qu’après acceptation. On peut changer d’avis en bas de la fenêtre Statistiques.
+La balise Google `GTM-MDHG2M87` (propriété GA4 `G-N729Y7LPNV`) est dans le `<head>` d’`index.html`, en **Consent Mode v2** :
 
-Le jeu envoie aussi les événements `game_start` (`mode`, `duration`, `difficulty`, `candidate`, `matchmade`) et `game_end` (`mode`, `won`, `candidate`, `length`). Ils apparaissent dans GA4, dans *Rapports → Engagement → Événements*.
+- par défaut, tout est « refusé » : aucun cookie, et Google ne reçoit que des signaux anonymes, qui lui servent à estimer les visites ;
+- quand le visiteur clique sur « Accepter » dans le bandeau, `analytics_storage` passe à « accordé » et la mesure devient complète. Ce choix est retenu, et on peut le changer en bas de la fenêtre Statistiques ;
+- la publicité (`ad_storage`, `ad_user_data`, `ad_personalization`) reste toujours refusée.
+
+Le jeu envoie aussi les événements `game_start` (`mode`, `duration`, `difficulty`, `candidate`, `matchmade`) et `game_end` (`mode`, `won`, `candidate`, `length`). Ils apparaissent dans GA4, dans *Rapports → Engagement → Événements*. Les visiteurs qui ont un bloqueur de pub (uBlock, AdBlock…) n’envoient rien à Google ; les statistiques du jeu (📊) les comptent quand même.
 
 ## La carte
 
