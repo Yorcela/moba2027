@@ -253,11 +253,12 @@ for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {
     abilities: A.kit(names), look,
   });
 }
-// Slogans de campagne 2027 du président élu, lus à la victoire (say : texte prononcé si différent).
+// Slogans de campagne 2027 du président élu, lus à la victoire (say : texte prononcé si différent ;
+// audio : extrait joué à la place de la synthèse vocale).
 // Sources : presse (nov. 2026) et candidats2027.org ; sans slogan connu, nom du mouvement ou phrase par défaut.
 const CATCHPHRASES = {
-  melenchon: { text: 'La force de tout changer !', pitch: 0.9 },
-  glucksmann: { text: 'Réveiller la France !' },
+  melenchon: { text: 'La force de tout changer !', pitch: 0.9, audio: 'assets/sfx/victoire-melenchon.mp3' },
+  glucksmann: { text: 'Réveiller la France !', audio: 'assets/music/la-marseillaise.mp3' }, // La Marseillaise (8 bits)
   tondelier: { text: 'Tenez bon, nous arrivons !' },
   roussel: { text: 'Vivre !' },
   ruffin: { text: 'Nous président !' },

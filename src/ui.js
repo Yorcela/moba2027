@@ -831,6 +831,7 @@
     $('#end').classList.remove('hidden');
   }
   function backToMenu() {
+    Sound.stopVoice();
     $('#end').classList.add('hidden'); $('#hud').classList.add('hidden'); $('#menu').classList.remove('hidden');
     $('#respawn').classList.add('hidden'); gl.classList.remove('dead');
     if (shopOpen) toggleShop(false);

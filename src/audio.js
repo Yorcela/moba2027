@@ -113,7 +113,8 @@ const Sound = (() => {
       if (won) {
         const a = sample('victory', 1);
         let said = false;
-        const say = () => { if (!said) { said = true; speak(quote); } };
+        // extrait audio propre au candidat s'il existe, sinon slogan en synthèse vocale
+        const say = () => { if (!said) { said = true; if (quote && quote.audio) voice(quote.audio); else speak(quote); } };
         if (a) { a.addEventListener('ended', say); a.addEventListener('error', say); }
         setTimeout(say, 6000); // au cas où « ended » n'arrive pas
         return;
@@ -156,9 +157,26 @@ const Sound = (() => {
   // ── musique : fichiers MP3 en boucle (version « défaut » ou « patriote ») ──
   const TRACKS = { defaut: 'assets/music/soundtrack.mp3', patriote: 'assets/music/la-marseillaise.mp3' };
   let el = null;
+  // extrait de victoire d'un candidat : la musique s'efface le temps qu'il passe
+  let voiceEl = null, duck = false;
+  function voice(src) {
+    stopVoice();
+    if (cfg.sfxMute) return;
+    voiceEl = new Audio(src);
+    voiceEl.volume = Math.min(1, cfg.sfxVol * 1.1);
+    duck = true; applyMusic();
+    const done = () => { if (voiceEl && voiceEl.src.endsWith(src)) { voiceEl = null; duck = false; applyMusic(); } };
+    voiceEl.addEventListener('ended', done); voiceEl.addEventListener('error', done);
+    voiceEl.play().catch(done);
+  }
+  function stopVoice() {
+    if (voiceEl) { voiceEl.pause(); voiceEl = null; }
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    if (duck) { duck = false; applyMusic(); }
+  }
   function applyMusic() {
     if (!el) { el = new Audio(); el.loop = true; el.preload = 'none'; }
-    el.volume = Math.min(1, cfg.musicVol * 0.7);
+    el.volume = Math.min(1, cfg.musicVol * 0.7) * (duck ? 0.15 : 1);
     if (!musicOn || cfg.musicMute || !ctx) { el.pause(); return; }
     const track = TRACKS[cfg.track] ? cfg.track : 'defaut';
     if (el.dataset.track !== track) { el.dataset.track = track; el.src = TRACKS[track]; }
@@ -176,5 +194,5 @@ const Sound = (() => {
   window.addEventListener('pointerdown', unlock, true);
   window.addEventListener('keydown', unlock, true);
 
-  return { set, cfg, music, sfx, speak, get ready() { return !!ctx; }, get musicState() { return el && { paused: el.paused, track: el.dataset.track, time: el.currentTime }; } };
+  return { set, cfg, music, sfx, speak, stopVoice, get ready() { return !!ctx; }, get musicState() { return el && { paused: el.paused, track: el.dataset.track, time: el.currentTime }; } };
 })();
