@@ -33,7 +33,7 @@ npm install
 npm start
 ```
 
-puis ouvrez http://localhost:8080 dans plusieurs onglets ou sur plusieurs machines du réseau local (avec l’adresse IP de la machine). Le même serveur sert les fichiers du jeu et le WebSocket (`/ws`).
+puis ouvrez http://localhost:8080/?server=ws://localhost:8080/ws dans plusieurs onglets. Le même serveur sert les fichiers du jeu et le WebSocket (`/ws`). Sans le paramètre `?server=`, le jeu se connecte toujours au serveur public (voir plus bas).
 
 - Le serveur est **autoritaire** : chaque salle fait tourner sa propre copie du moteur (`src/data.js`, `map.js`, `game.js`, `ai.js`, chargés dans un contexte `vm` isolé) à 60 Hz. Il envoie l’état environ 20 fois par seconde ; le navigateur interpole ces instantanés pour un rendu fluide.
 - Les navigateurs n’envoient que des **intentions** : direction au clavier, clic (déplacement ou cible), sort (visée automatique, ou point visé avec Maj), récolte (Entrée), cible (Tab), retour au QG (B), achat.
@@ -42,11 +42,11 @@ puis ouvrez http://localhost:8080 dans plusieurs onglets ou sur plusieurs machin
 
 Variables d’environnement : `PORT` (8080 par défaut), `PICK_TIME` (durée de la sélection, 45 s), `MM_COOP_WAIT` (20 s : passé ce délai, une partie coop démarre avec les joueurs présents) et `MM_PVP_WAIT` (60 s : passé ce délai, un 3 contre 3 démarre s’il y a au moins 2 joueurs, en camps équilibrés complétés par des bots).
 
-Si la page du jeu est servie ailleurs que par le serveur (par exemple sur GitHub Pages), indiquez l’adresse du serveur dans le champ **Serveur** du menu en ligne (`wss://mon-serveur.example`) ou dans `window.MOBA_SERVER` en bas de `index.html`.
+Le jeu se connecte **toujours** au serveur public `wss://moba2027.onrender.com/ws` (constante `PUBLIC_SERVER` dans `src/net.js`) : les joueurs n’ont aucune adresse à saisir. Pour un autre serveur, ajoutez `?server=wss://…/ws` à l’adresse de la page, ou renseignez `window.MOBA_SERVER` en bas de `index.html`.
 
 ### GitHub Pages
 
-Le workflow `.github/workflows/pages.yml` publie le jeu sur https://yorcela.github.io/moba2027/ à chaque push sur `main` (ou à la main depuis l’onglet *Actions*). Il copie seulement les fichiers statiques : `index.html`, `map.html`, `src/`, `assets/` et `docs/`. Le solo y fonctionne directement. Pour le jeu en ligne, cette page se connecte par défaut au serveur public hébergé sur Render, **https://moba2027.onrender.com** (constante `PUBLIC_SERVER` dans `src/net.js`) : il n’y a rien à saisir. Ce serveur se met en veille après une quinzaine de minutes sans joueur ; la première connexion peut alors prendre environ une minute. On peut aussi y jouer directement à cette adresse, car le serveur sert aussi le jeu.
+Le workflow `.github/workflows/pages.yml` publie le jeu sur https://yorcela.github.io/moba2027/ à chaque push sur `main` (ou à la main depuis l’onglet *Actions*). Il copie seulement les fichiers statiques : `index.html`, `map.html`, `src/`, `assets/` et `docs/`. Le solo y fonctionne directement. Pour le jeu en ligne, cette page se connecte au serveur public hébergé sur Render, **https://moba2027.onrender.com** : il n’y a rien à saisir. Ce serveur se met en veille après une quinzaine de minutes sans joueur ; la première connexion peut alors prendre environ une minute. On peut aussi y jouer directement à cette adresse, car le serveur sert aussi le jeu.
 
 ### Hébergement
 
@@ -87,9 +87,9 @@ Rien n’est déployé publiquement pour l’instant.
 | **Polémiques** | Les attaques des candidats sont des polémiques, lancées sous forme de **phylactères** (« Honte ! », « Démission ! »…). Les sorts sont des bulles pleines aux couleurs du camp. Chaque coup fait baisser la cible dans les sondages au profit de l’attaquant. À 0 de crédibilité, c’est le scandale : 15 % de son score perdu et retour au QG. Le délai de retour vaut 1 s par point de sondage (de 3 à 15 s), et toutes les recharges sont remises à zéro. |
 | **Sondage** | Tout le monde part de **0 %** : les 100 % sont d’abord des **indécis**. Conversions, bulletins, bureaux conquis et mairies font gagner des indécis, de plus en plus difficilement à mesure qu’il en reste peu. Polémiques et scandales font passer des points d’un candidat à l’autre. Le score détermine la **puissance** (dégâts et crédibilité). |
 | **Sorts** | Ils se débloquent dans les sondages : **A à 5 %**, **Z à 10 %**, **E à 15 %**, **R à 30 %**. Un sort débloqué le reste. |
-| **Mairies** | Rapportent des **parrainages** (et du sondage). Plus votre camp a vidé une mairie, plus elle rapporte. |
-| **Meetings** | Rapportent des **dons**. Chaque meeting déjà organisé par votre camp dure 2 s de plus mais rapporte 70 € de plus. |
-| **Récolte** | Il faut rester **immobile** : 12 s de son côté de la carte, 7 s du côté adverse, 10 s dans les quartiers neutres. Bouger annule la récolte, qui repart de zéro. |
+| **Mairies** | Rapportent des **parrainages** (et du sondage). Plus votre camp a vidé une mairie, plus la collecte est longue (2,5 s de plus à chaque fois) et plus elle rapporte. |
+| **Meetings** | Rapportent des **dons**. Chaque meeting déjà organisé par votre camp dure 2,5 s de plus mais rapporte 80 € de plus. |
+| **Récolte** | Il faut rester **immobile** : 5 s la première fois, puis 2,5 s de plus à chaque nouveau passage du camp (meeting comme mairie), qui rapporte aussi davantage. Bouger annule la récolte, qui repart de zéro. |
 | **Programme** | Au QG (P, puis flèches et Entrée, ou 1 à 9), on adopte des **mesures** qui ne se consomment pas : chacune **s’améliore jusqu’au niveau 5**, de plus en plus chère et puissante. Leurs noms dépendent du camp : sociales, écologiques et anti-libérales à gauche (Taxe sur les superprofits, Hôpital public, Planification écologique…), sécuritaires, régaliennes et budgétaires à droite (Peines planchers, Remboursement de la dette, Dissuasion nucléaire…). Catégories : polémique (DPS), résistance (tank), sorts, recharge, vitesse et **finances** (plus de dons par seconde, ou réduction sur tous les achats). 6 mesures au maximum. |
 | **Matériel de campagne** | T-shirts (+PV), casquettes (+vitesse), banderoles (+dégâts), flyers (+1 militant par vague), affiches (bulletins qui rapportent plus de sondage). Il renforce tous les militants du camp, 3 niveaux de plus en plus chers. |
 | **Victoire** | Il faut gagner la **présidentielle** (Élysée) **et** avoir la majorité dans **au moins une chambre** (Assemblée ou Sénat). Sinon c’est la cohabitation, et la partie continue. Un camp qui réunit **500 parrainages** (mairies, Sénat) gagne aussi immédiatement. |
@@ -135,7 +135,7 @@ La musique et les effets démarrent au premier clic ou à la première touche, c
 
 - **Musique** : deux thèmes en boucle, au choix dans les Options : **défaut** (bande-son de [@8bitdreams4u](https://www.youtube.com/@8bitdreams4u)) et **patriote** (*La Marseillaise* en 8 bits, par [@8BitUniverse](https://www.youtube.com/@8BitUniverse)), dans `assets/music/`.
 - La foule en fin de meeting et le son de victoire sont des enregistrements (`assets/sfx/`) ; les autres effets sont **synthétisés en direct** (Web Audio).
-- À la victoire, après le son, la **phrase culte du président élu** (« La République, c’est moi ! », « Vive la Fraaaance ! »…) est lue par la synthèse vocale du navigateur et affichée dans une bulle (`CATCHPHRASES` dans `src/data.js`).
+- À la victoire, après le son, le **slogan de campagne 2027 du président élu** (« Croire en nous », « La force d’agir », « Vivre ! »…) est lue par la synthèse vocale du navigateur et affichée dans une bulle (`CATCHPHRASES` dans `src/data.js`).
 - **Effets** : attaques automatiques, lancement des sorts, bureau de vote conquis (fanfare montante, ou descendante si c'est l'adversaire), foule qui acclame à la fin d'un meeting, griffonnages et carillon à la fin d'une collecte de parrainages, fanfare de victoire ou thème de défaite. Le volume baisse avec la distance à la caméra ; les récoltes de son camp restent toujours audibles.
 
 | Action | Mode « Flèches » (par défaut) | Mode « ZQSD » |

@@ -17,11 +17,12 @@ const Net = (() => {
   // serveur public utilisé quand la page n'est pas servie par un serveur de jeu
   // (GitHub Pages, fichier ouvert en local)
   const PUBLIC_SERVER = 'wss://moba2027.onrender.com/ws';
+  // toujours le serveur public ; pour tester un serveur local : ?server=ws://localhost:8080/ws
   function defaultUrl() {
+    const q = /[?&]server=([^&]+)/.exec(location.search);
+    if (q) return decodeURIComponent(q[1]);
     if (typeof window !== 'undefined' && window.MOBA_SERVER) return window.MOBA_SERVER;
-    if (/\.github\.io$/.test(location.hostname) || location.protocol === 'file:') return PUBLIC_SERVER;
-    if (location.protocol === 'http:' || location.protocol === 'https:') return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
-    return 'ws://localhost:8080/ws';
+    return PUBLIC_SERVER;
   }
   function normUrl(u) {
     u = String(u || '').trim();
@@ -37,7 +38,6 @@ const Net = (() => {
 
   // se connecte (ou réutilise la connexion ouverte) et présente le joueur
   function connect(url, name) {
-    if (!String(url || '').trim() && !defaultUrl()) return Promise.reject(new Error('Indiquez l’adresse du serveur de jeu en ligne'));
     url = normUrl(url);
     if (connected() && ws.url === url) { send({ t: 'hello', name }); return Promise.resolve(); }
     if (ws) { const old = ws; ws = null; try { old.close(); } catch (e) { /* ignore */ } }

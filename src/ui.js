@@ -199,9 +199,9 @@
   const onlineEl = $('#online-panel');
   function setStatus(msg, err) { lobby.status = msg ? `<p class="status${err ? ' err' : ''}">${esc(msg)}</p>` : ''; renderOnline(); }
   function readIdentity() {
-    const n = $('#on-name'), sv = $('#on-server');
+    const n = $('#on-name');
     if (n) prefs.name = n.value.trim().slice(0, 18);
-    if (sv) prefs.server = sv.value.trim();
+    delete prefs.server; // ancienne adresse saisie à la main : plus utilisée
     savePrefs();
   }
   async function withServer(fn) {
@@ -209,14 +209,13 @@
     if (lobby.busy) return;
     lobby.busy = true; setStatus('Connexion au serveur…');
     try {
-      await Net.connect(prefs.server || Net.defaultUrl(), prefs.name);
+      await Net.connect(Net.defaultUrl(), prefs.name);
       lobby.busy = false; setStatus('');
       fn();
     } catch (e) {
       lobby.busy = false;
-      setStatus(Net.defaultUrl() || prefs.server
-        ? e.message + ' — lancez le serveur (npm start) ou vérifiez l’adresse.'
-        : 'Cette page (GitHub Pages) n’héberge pas de serveur de jeu : indiquez l’adresse d’un serveur dans le champ « Serveur » (voir le README). Le solo fonctionne sans serveur.', true);
+      // serveur gratuit en veille : le réveil peut prendre environ une minute
+      setStatus('Le serveur de jeu ne répond pas encore (il peut mettre une minute à se réveiller) : réessayez dans un instant. Le solo fonctionne sans serveur.', true);
     }
   }
   function renderOnline() {
@@ -239,7 +238,6 @@
       <h2>${coop ? 'En ligne · 3 joueurs contre les bots' : 'En ligne · 3 contre 3'}</h2>
       <div class="on-row">
         <label>Pseudo <input id="on-name" maxlength="18" placeholder="Votre pseudo" value="${esc(prefs.name)}"></label>
-        <label>Serveur <input id="on-server" placeholder="${esc(Net.defaultUrl() || 'wss://adresse-du-serveur')}" value="${esc(prefs.server)}"></label>
       </div>
       ${coop ? `<div class="on-grid">
         <div class="on-card"><b>Créer une salle</b><span>Un code à partager à 2 amis. Vous choisissez le camp.</span>
@@ -761,7 +759,7 @@
     let tip;
     if (S.t < 12) tip = `Votre QG est à ${p.team === 'gauche' ? 'l’ouest' : 'l’est'}. Votre voie : <b>${LANE_NAMES[p.lane]}</b>. Avancez <b>derrière vos militants</b>. <b>H</b> : à quoi servent la crédibilité, le sondage et les autres statistiques.`;
     else if (enemyMil) tip = `Militants adverses en vue ! Approchez-vous : dès qu’ils sont dans votre cercle jaune, vos <b>polémiques partent toutes seules</b>. Chaque conversion vous fait monter dans les sondages : <b>${KEY_LABEL.Q}</b> se débloque à ${CFG.unlock.Q} %.`;
-    else tip = `Les bureaux adverses tirent sur <b>vous</b> (cercle rouge), pas sur les militants : restez derrière eux. Près d’une mairie ou d’un meeting, <b>Entrée</b> pour récolter : ${CFG.campChannelOwn} s immobile de votre côté, ${CFG.campChannelFoe} s chez l’adversaire.`;
+    else tip = `Les bureaux adverses tirent sur <b>vous</b> (cercle rouge), pas sur les militants : restez derrière eux. Près d’une mairie ou d’un meeting, <b>Entrée</b> pour récolter : ${CFG.campStart} s immobile la première fois, un peu plus à chaque passage, mais ça rapporte plus.`;
     $('#tips-text').innerHTML = tip;
   }
   $('#tips-close').onclick = () => { tipsDone = true; $('#tips').classList.add('hidden'); };

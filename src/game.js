@@ -707,14 +707,13 @@ const Game = (() => {
   }
 
   // immobile 12 s de son côté de la carte, 7 s chez l'adversaire, 10 s en zone neutre
+  // 5 s la première fois, puis un peu plus long à chaque passage du camp… et plus rentable
   function campDuration(c, camp) {
-    const base = camp.side === c.team ? CFG.campChannelOwn : camp.side === 'neutre' ? CFG.campChannel : CFG.campChannelFoe;
-    // chaque meeting déjà organisé par ce camp dure plus longtemps (mais rapporte plus)
-    return camp.type === 'meeting' ? base + CFG.meetingExtra * camp.h[c.team] : base;
+    return CFG.campStart + CFG.campExtra * camp.h[c.team];
   }
   function campReward(team, camp) {
     const h = camp.h[team];
-    return camp.type === 'mairie' ? Math.round(12 * (1 + 0.35 * h)) : Math.round(100 + 70 * h);
+    return camp.type === 'mairie' ? Math.round(12 * (1 + 0.5 * h)) : Math.round(100 + 80 * h);
   }
 
   function alive(t) { return t.kind === 'cand' ? !t.dead : !t.converted && S.mil.includes(t); }

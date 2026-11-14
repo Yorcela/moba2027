@@ -25,10 +25,8 @@ const CFG = {
   bureauMax: 6,          // bulletins pour conquérir un bureau de vote
   objMax: { top: 10, mid: 16, bot: 10 }, // bulletins pour contrôler AN / gagner l'Élysée / contrôler le Sénat
   secondTour: 6 * 60,    // à partir de là, chaque bulletin compte double (60 % de la durée, recalculé)
-  campChannel: 10,       // s immobile dans un camp de jungle neutre
-  campChannelOwn: 12,    // … dans un camp de son côté de la carte
-  campChannelFoe: 7,     // … dans un camp du côté adverse (plus risqué, plus rapide)
-  meetingExtra: 2,       // s de plus à chaque meeting déjà organisé par le camp (et +70 € de dons)
+  campStart: 5,          // s immobile pour le premier meeting / la première collecte de parrainages
+  campExtra: 2.5,        // s de plus à chaque fois que le camp y retourne (mais ça rapporte plus)
   mairieRespawn: 55,
   meetingRespawn: 45,
   recallTime: 4,
@@ -255,30 +253,32 @@ for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {
     abilities: A.kit(names), look,
   });
 }
-// Phrases cultes du président élu, lues à la victoire (say : texte prononcé si différent)
+// Slogans de campagne 2027 du président élu, lus à la victoire (say : texte prononcé si différent).
+// Sources : presse (nov. 2026) et candidats2027.org ; sans slogan connu, nom du mouvement ou phrase par défaut.
 const CATCHPHRASES = {
-  melenchon: { text: 'La République, c’est moi !', pitch: 0.9 },
-  glucksmann: { text: 'Vive la Fraaaaaance !', say: 'Vive la Fraaance !', rate: 0.75 },
-  tondelier: { text: 'Le vert, c’est ma couleur !' },
-  roussel: { text: 'Un bon vin, une bonne viande, un bon fromage !' },
-  ruffin: { text: 'Merci patron !' },
-  cazeneuve: { text: 'La gauche de gouvernement est de retour !' },
-  arthaud: { text: 'Travailleuses, travailleurs !' },
-  bouamrane: { text: 'Saint-Ouen, champion du monde !' },
-  cheve: { text: 'Restons adultes, s’il vous plaît.' },
-  lepen: { text: 'Au nom du peuple !' },
-  philippe: { text: 'Je vous l’avais dit : j’étais prêt.' },
-  retailleau: { text: 'Force doit rester à la loi !' },
-  attal: { text: 'Le plus jeune président de l’histoire !', rate: 1.15 },
-  zemmour: { text: 'Impossible n’est pas français !' },
-  bertrand: { text: 'La France des territoires a gagné !' },
-  villepin: { text: 'C’est un vieux pays, la France, qui vous parle !', rate: 0.85, pitch: 0.85 },
-  dupontaignan: { text: 'Debout la France !' },
-  riner: { text: 'Ippon !', pitch: 0.7 },
-  lisnard: { text: 'Libérez les maires !' },
-  polony: { text: 'Souveraineté, enfin !' },
-  philippot: { text: 'Frexit, maintenant !' },
-  asselineau: { text: 'Article 50 !' },
+  melenchon: { text: 'La force de tout changer !', pitch: 0.9 },
+  glucksmann: { text: 'Réveiller la France !' },
+  tondelier: { text: 'Tenez bon, nous arrivons !' },
+  roussel: { text: 'Vivre !' },
+  ruffin: { text: 'Nous président !' },
+  cazeneuve: { text: 'Tenir la promesse de la France.' },
+  arthaud: { text: 'Le camp des travailleurs !' },
+  bouamrane: { text: 'La France humaine et forte !' },
+  cheve: { text: 'La France adulte.' },
+  batho: { text: 'L’espérance.' },
+  kazib: { text: 'Faire entendre la voix de notre classe !' },
+  lepen: { text: 'Pour la France, la Renaissance !' },
+  philippe: { text: 'Croire en nous.' },
+  retailleau: { text: 'Remettre la France à l’endroit !' },
+  attal: { text: 'La force d’agir !' },
+  zemmour: { text: 'Que notre avenir soit français !' },
+  villepin: { text: 'La France humaniste.', rate: 0.9, pitch: 0.85 },
+  dupontaignan: { text: 'Priorité France !' },
+  riner: { text: 'La France qu’on veut !', pitch: 0.75 },
+  lisnard: { text: 'Nouvelle Énergie !' },
+  polony: { text: 'Nous sommes la France !' },
+  philippot: { text: 'Les Patriotes !' },
+  asselineau: { text: 'La France retrouvée !' },
 };
 const DEFAULT_CATCHPHRASE = { text: 'Vive la République, et vive la France !' };
 // Retirés du choix (et des bots), mais gardés dans le code

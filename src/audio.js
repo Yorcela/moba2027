@@ -106,7 +106,7 @@ const Sound = (() => {
       for (let i = 0; i < 4; i++) noise(sfxBus, t + i * 0.09, 0.06, 'bandpass', 3200 + i * 300, 3, 0.12 * vol);
       [76, 81, 88].forEach((n, i) => tone(sfxBus, 'sine', hz(n), 0, t + 0.38 + i * 0.1, 0.005, 0.9, 0.14 * vol));
     },
-    // fin de partie : son de victoire (enregistrement) puis phrase culte du président élu,
+    // fin de partie : son de victoire (enregistrement) puis slogan de campagne du président élu,
     // ou thème de défaite synthétisé
     end(won, quote) {
       if (!ctx || cfg.sfxMute) return;
@@ -140,7 +140,7 @@ const Sound = (() => {
     a.play().catch(() => {});
     return a;
   }
-  // phrase culte lue par la voix française du navigateur (synthèse vocale)
+  // slogan lu par la voix française du navigateur (synthèse vocale)
   function speak(q) {
     if (!q || cfg.sfxMute || !window.speechSynthesis) return;
     const u = new SpeechSynthesisUtterance(q.say || q.text);

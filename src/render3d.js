@@ -1220,9 +1220,13 @@ const R3 = (() => {
       for (const k of ['top', 'mid', 'bot']) statics.obj[k].userData.ring.material.color.set(Render.gaugeColor(S.obj[k]));
       S.camps.forEach((c, i) => {
         const u = statics.camps[i].userData, on = S.t >= c.availableAt;
+        // en recharge : la scène de meeting ou la mairie disparaît jusqu'à son retour
+        statics.camps[i].visible = on;
         if (u.crowd) u.crowd.visible = on;
         if (u.windows) u.windows.material = on ? mat(0xffe08a, { emissive: 0xffc94d, emissiveIntensity: 0.8 }) : mat(0x3a3a3a);
       });
+    } else {
+      for (const g of statics.camps) g.visible = true; // menu : tout est affiché
     }
     for (const [e, o] of live) if (!seen.has(e)) { scene.remove(o); live.delete(e); if (o.isSprite) o.material.dispose(); }
     for (const f of statics.flags) f.rotation.y = Math.sin(t * 2 + f.id) * 0.25;
