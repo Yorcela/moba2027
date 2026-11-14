@@ -241,7 +241,6 @@ const EXTRA = [
   ['asselineau', 'François Asselineau', 'FA', 'UPR', 'droite', 'enchanteur', ['Article 50', 'Conférence', 'Diaporama', 'Conférence de 3 h'], { hair: 0x8a8a8a, style: 'short', suit: 0x2a2f3a, glasses: 1 }],
   ['branco', 'Juan Branco', 'JB', 'Sans étiquette', 'neutre', 'assassin', ['Révélation', 'Thread', 'Fuite', 'Crépuscule'], { hair: 0x2a1d17, style: 'long', suit: 0x1b1b1f, stubble: 0x2a1d17 }],
   ['cheve', 'Joël Chevé', 'JC', 'La France Adulte', 'gauche', 'rempart', ['Bon sens', 'Maturité', 'Pas de côté', 'Âge de raison'], { hair: 0xbdbdbd, style: 'short', suit: 0x3b4252 }],
-  ['dubuisson', 'Emmanuel Dubuisson', 'ED', 'Sans étiquette', 'neutre', 'protecteur', ['Proposition', 'Citoyenneté', 'Covoiturage', 'Union'], { hair: 0x4a3426, style: 'short', suit: 0x30384a }],
   ['egger', 'Clara Egger', 'CE', 'Solution démocratique', 'neutre', 'enchanteur', ['RIC', 'Bulletin', 'Agora', 'Démocratie directe'], { hair: 0x7a5236, style: 'long', suit: 0x4a5a7a, fem: 1 }],
   ['markovic', 'Mira Markovic', 'MM', 'Parti animaliste', 'neutre', 'soigneur', ['Pétition', 'Refuge', 'Transhumance', 'Arche de Noé'], { hair: 0x3a2a20, style: 'long', suit: 0x6a8a3a, fem: 1 }],
   ['mikolajczak', 'Antoine Mikolajczak', 'AM', 'Équinoxe', 'neutre', 'tireur', ['Tableur', 'Expertise', 'Cap', 'Équinoxe'], { hair: 0x6b4a32, style: 'short', suit: 0x2f4f6a }],
@@ -260,7 +259,7 @@ for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {
 const HIDDEN = new Set(['branco', 'kazib', 'labib', 'mikolajczak', 'verdier', 'batho', 'egger', 'markovic', 'platret', 'becht']);
 // Ordre d'affichage : les plus connus / les mieux placés d'abord
 const POPULARITY = ['lepen', 'melenchon', 'philippe', 'glucksmann', 'retailleau', 'attal', 'zemmour', 'tondelier', 'bertrand', 'villepin',
-  'roussel', 'ruffin', 'cazeneuve', 'dupontaignan', 'riner', 'lisnard', 'polony', 'philippot', 'arthaud', 'asselineau', 'bouamrane', 'cheve', 'dubuisson'];
+  'roussel', 'ruffin', 'cazeneuve', 'dupontaignan', 'riner', 'lisnard', 'polony', 'philippot', 'arthaud', 'asselineau', 'bouamrane', 'cheve'];
 for (const d of CANDIDATES) {
   d.hidden = HIDDEN.has(d.id);
   d.pop = POPULARITY.indexOf(d.id) < 0 ? 99 : POPULARITY.indexOf(d.id);

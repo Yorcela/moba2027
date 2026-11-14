@@ -1,4 +1,4 @@
-# Campagne 2027
+# Élysée27 (Campagne 2027)
 
 MOBA satirique en 3 contre 3 : gauche contre droite, avec des candidats à l’élection présidentielle 2027. Le but n’est pas de détruire le QG adverse mais de **conquérir l’Élysée** au centre de la carte. Le candidat du camp gagnant qui est le mieux placé dans les sondages est élu président de la République.
 
@@ -97,7 +97,7 @@ Rien n’est déployé publiquement pour l’instant.
 
 ## Candidats
 
-Les 33 personnalités suivies par [Poligraph](https://poligraph.fr/elections/presidentielle-2027/candidats) (candidatures annoncées ou pressenties) sont jouables. Elles sont classées à gauche, à droite, ou parmi les **neutres et inclassables**. Ces derniers sont un peu plus faibles (−12 % de crédibilité et de dégâts) mais jouables dans les deux camps.
+Les 32 personnalités suivies par [Poligraph](https://poligraph.fr/elections/presidentielle-2027/candidats) (candidatures annoncées ou pressenties) sont jouables. Elles sont classées à gauche, à droite, ou parmi les **neutres et inclassables**. Ces derniers sont un peu plus faibles (−12 % de crédibilité et de dégâts) mais jouables dans les deux camps.
 
 Chaque équipe compte **un tank** (voie de l’Assemblée), **un DPS** (avenue de l’Élysée) et **un soutien** (voie du Sénat). Les bots complètent l’équipe du joueur et l’équipe adverse.
 
@@ -117,9 +117,9 @@ Les mécaniques de sorts disponibles :
 
 Chaque candidat a des noms de sorts qui lui sont propres. Les 6 premiers ont des kits sur mesure. Le R de Marine Le Pen, « Lâcher de chats », envoie 5 chats sur les adversaires les plus proches.
 
-| Gauche | Droite | Neutre |
-|---|---|---|
-| Jean-Luc Mélenchon, Raphaël Glucksmann, Marine Tondelier, Fabien Roussel, François Ruffin, Bernard Cazeneuve, Nathalie Arthaud, Karim Bouamrane, Joël Chevé | Marine Le Pen, Édouard Philippe, Bruno Retailleau, Gabriel Attal, Éric Zemmour, Xavier Bertrand, Dominique de Villepin, Nicolas Dupont-Aignan, Teddy Riner, David Lisnard, Natacha Polony, Florian Philippot, François Asselineau | Emmanuel Dubuisson |
+| Gauche | Droite |
+|---|---|
+| Jean-Luc Mélenchon, Raphaël Glucksmann, Marine Tondelier, Fabien Roussel, François Ruffin, Bernard Cazeneuve, Nathalie Arthaud, Karim Bouamrane, Joël Chevé | Marine Le Pen, Édouard Philippe, Bruno Retailleau, Gabriel Attal, Éric Zemmour, Xavier Bertrand, Dominique de Villepin, Nicolas Dupont-Aignan, Teddy Riner, David Lisnard, Natacha Polony, Florian Philippot, François Asselineau |
 
 Dans le menu, les candidats sont triés par notoriété. Juan Branco, Anasse Kazib, Selma Labib, Antoine Mikolajczak, Fabien Verdier, Delphine Batho, Clara Egger, Mira Markovic, Gilles Platret et Olivier Becht sont retirés du choix (et des bots) mais restent définis dans le code (`HIDDEN` dans `src/data.js`). Les hommes en costume portent une cravate rouge à gauche et bleue à droite. Au survol d'un sort dans le HUD, une infobulle détaille son effet et ses statistiques.
 
@@ -169,4 +169,4 @@ Tous les équilibrages se règlent dans `CFG` (`src/data.js`).
 - Campagne : [Nature Kit](https://kenney.nl/assets/nature-kit) et [Platformer Kit](https://kenney.nl/assets/platformer-kit) de **Kenney** (CC0) : cultures, arbres, clôtures, haies, rochers, tonneaux, caisses.
 - Des vaches et des moutons se baladent à la campagne, des chiens et des chats dans les quartiers résidentiels (voxel, en code).
 - La carte est découpée en tranches symétriques : ville au nord et au sud, quartiers résidentiels en haut de chaque camp, campagne en bas. Les fermes, les vaches et les bottes de foin sont construites en code.
-- Les 33 candidats, les militants et le public des meetings (hommes et femmes) sont en **style voxel**, construits en code d'après les photos des candidats : coupe et couleur des cheveux, barbe, lunettes, tenue.
+- Les 32 candidats, les militants et le public des meetings (hommes et femmes) sont en **style voxel**, construits en code d'après les photos des candidats : coupe et couleur des cheveux, barbe, lunettes, tenue.

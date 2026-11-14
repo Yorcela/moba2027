@@ -673,7 +673,8 @@ const R3 = (() => {
   // hs : coupe (long, bob, short, swept, messy, curly, curlyLong, balding, bald, shaved, tied)
   // out : tenue (suit, sweater, tracksuit, casual, trench, tweed, tux) ; tie / bow : cravate, nœud papillon
   const VOX = {
-    melenchon: { hair: 0xd9d9d9, hs: 'swept', suit: 0x22252c, tie: 0xc8202f, brow: 0xbfbfbf, sash: 1 },
+    // veste de travail fermée (col officier) : seul le nœud de la cravate rouge dépasse
+    melenchon: { hair: 0xd9d9d9, hs: 'swept', out: 'worker', suit: 0x23272f, tie: 0xc8202f, brow: 0xbfbfbf },
     glucksmann: { hair: 0x6b5a4e, hs: 'balding', suit: 0x2a3142 },
     tondelier: { hair: 0x6a4026, hs: 'bob', suit: 0x3c9a4e, fem: 1 },
     lepen: { hair: 0xf0dc6e, hs: 'long', suit: 0x1d1d22, fem: 1 },
@@ -699,7 +700,6 @@ const R3 = (() => {
     asselineau: { hair: 0xdedede, hs: 'balding', suit: 0x22252c, tie: 0x1a1a1a },
     branco: { hair: 0x2a1d17, hs: 'messy', out: 'sweater', suit: 0xc0282e },
     cheve: { hair: 0x2a221c, hs: 'short', stubble: 0x3a2e28, eyepatch: 1, out: 'casual', suit: 0x3a3a3a, shirt: 0x2a3a5a },
-    dubuisson: { hair: 0x1a1612, hs: 'short', skin: 0xb98a63, suit: 0x1f3a7a, shirt: 0xcfe0f5 },
     egger: { hair: 0x6b4a32, hs: 'tied', out: 'casual', suit: 0x2a2a2a, shirt: 0x3a3a3a, fem: 1 },
     markovic: { hair: 0x1f1612, hs: 'tied', out: 'tweed', suit: 0x1b1b1d, shirt: 0xd0287a, necklace: 0xd8b04a, fem: 1 },
     mikolajczak: { hair: 0x2a1d17, hs: 'curly', mustache: 0x2a1d17, out: 'casual', suit: 0x1b1b1d, shirt: 0x1b1b1d },
@@ -872,6 +872,17 @@ const R3 = (() => {
       [0x2347a8, 0xf4f4f0, 0xd7263d].forEach((col, i) => {
         for (const z of [7.3, -7.3]) { const b = vbox(col, 2.6, 34, 1, -2.6 + i * 2.6, 35, z); b.rotation.z = z > 0 ? 0.62 : -0.62; inner.add(b); }
       });
+    }
+    if (out === 'worker') {
+      // veste de travail boutonnée jusqu'en haut, col officier, poches de poitrine ;
+      // de la chemise et de la cravate, seul le nœud apparaît au col
+      const dark = new THREE.Color(jacket).multiplyScalar(0.7).getHex();
+      inner.add(vbox(jacket, 13, 3, 13.6, 0, 46, 0));
+      inner.add(vbox(shirt, 5, 2.6, 1, 0, 45.2, 6.9));
+      inner.add(vbox(V.tie || 0xc8202f, 3.4, 3, 1.4, 0, 44.4, 7.4));
+      inner.add(vbox(dark, 1, 20, 1, 1.5, 33, 6.8));
+      for (let i = 0; i < 4; i++) inner.add(vbox(0x111216, 1.4, 1.4, 1, 1.5, 26 + i * 5, 7.1));
+      for (const s of [-1, 1]) { inner.add(vbox(dark, 6, 5, 1, s * 6.5, 37, 6.9)); inner.add(vbox(dark, 6.4, 1.4, 1.2, s * 6.5, 39.4, 7)); }
     }
     if (out === 'tracksuit') {
       inner.add(vbox(0xf4f4f0, 1, 22, 1, 0, 34, 6.8));
@@ -1327,5 +1338,38 @@ const R3 = (() => {
     return url;
   }
 
-  return { init, resize, sync, setCamera, render, project, pickGround, cam, portrait };
+  // ── Candidats en posture de bagarre (écran d'accueil) ──
+  // dir = 1 : tourné vers la droite (camp de gauche) ; -1 : vers la gauche (camp de droite)
+  // pose : 0 coup de poing, 1 garde haute, 2 bras levés (harangue)
+  function fighter(id, team, dir, pose) {
+    const key = 'fight|' + id + '|' + team + '|' + dir + '|' + pose;
+    if (portraits.has(key)) return portraits.get(key);
+    const V = VOX[id];
+    if (!V) return null;
+    portrait(id, team); // initialise le moteur de rendu hors écran
+    const fake = { team, isPlayer: false, x: 0, y: 0, def: CAND_BY_ID[id] };
+    const o = buildVoxel(fake, V);
+    o.traverse((m) => { if (m.isMesh && m.geometry.type === 'RingGeometry') m.visible = false; });
+    const u = o.userData;
+    // trois quarts face à l'adversaire, jambes écartées, buste penché en avant
+    o.rotation.y = dir * 0.95;
+    u.body.rotation.x = 0.08;
+    u.legs[0].rotation.x = 0.4; u.legs[1].rotation.x = -0.35;
+    const [a0, a1] = dir > 0 ? [u.arms[0], u.arms[1]] : [u.arms[1], u.arms[0]]; // a0 : bras le plus proche de l'adversaire
+    if (pose === 0) { a0.rotation.x = -1.55; a1.rotation.x = -1.0; a1.rotation.z = -dir * 0.3; }
+    else if (pose === 1) { a0.rotation.x = -2.0; a0.rotation.z = dir * 0.25; a1.rotation.x = -1.9; a1.rotation.z = -dir * 0.25; }
+    else { a0.rotation.x = -2.9; a1.rotation.x = -2.6; a1.rotation.z = -dir * 0.35; }
+    u.head.rotation.y = dir * 0.15;
+    pr.sc.add(o);
+    pr.r.setSize(200, 280, false); pr.cam.aspect = 200 / 280; pr.cam.updateProjectionMatrix();
+    const H = 104 * (V.h || 1), d = (H * 1.25) / (2 * Math.tan((15 * Math.PI) / 180));
+    pr.cam.position.set(0, H * 0.6, d); pr.cam.lookAt(0, H * 0.52, 0);
+    pr.r.render(pr.sc, pr.cam);
+    const url = pr.r.domElement.toDataURL('image/png');
+    pr.sc.remove(o);
+    portraits.set(key, url);
+    return url;
+  }
+
+  return { init, resize, sync, setCamera, render, project, pickGround, cam, portrait, fighter };
 })();

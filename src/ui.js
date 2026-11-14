@@ -47,10 +47,61 @@
   // ── Menu ──
   let chosenTeam = null;
   let menuMode = null; // 'solo' | 'coop' | 'pvp'
+  const MODE_TITLES = { solo: 'Solo · avec et contre des bots', coop: 'En ligne · 3 joueurs contre les bots', pvp: 'En ligne · 3 contre 3' };
   function renderModes() {
     for (const b of document.querySelectorAll('.mode-btn')) b.classList.toggle('on', b.dataset.mode === menuMode);
     $('#solo-panel').classList.toggle('hidden', menuMode !== 'solo');
     $('#online-panel').classList.toggle('hidden', !menuMode || menuMode === 'solo');
+    // accueil (titre, camps qui s'affrontent, boutons) ou écran du mode choisi
+    $('#splash').classList.toggle('hidden', !!menuMode);
+    $('#modes').classList.toggle('hidden', !!menuMode);
+    $('#rules').classList.toggle('hidden', !!menuMode);
+    $('#mode-head').classList.toggle('hidden', !menuMode);
+    $('#mode-title').textContent = menuMode ? MODE_TITLES[menuMode] : '';
+  }
+  $('#btn-home').onclick = () => {
+    if (lobby.room || lobby.queue) return toast('Quittez d’abord la salle ou la file d’attente');
+    menuMode = null; chosenTeam = null; renderModes();
+    $('#menu').scrollTop = 0;
+  };
+
+  // ── Accueil : tous les candidats de gauche face à tous ceux de droite, en pleine bagarre ──
+  function buildArena() {
+    for (const team of ['gauche', 'droite']) {
+      const el = $('#crowd-' + team);
+      el.innerHTML = '';
+      const dir = team === 'gauche' ? 1 : -1;
+      const list = CANDIDATES.filter((d) => !d.hidden && d.team === team).sort((a, b) => a.pop - b.pop);
+      list.forEach((d, i) => {
+        let url = null;
+        try { url = R3.fighter(d.id, team, dir, i % 3); } catch (e) { /* WebGL indisponible */ }
+        if (!url) return;
+        // les plus connus au premier rang, au plus près de l'adversaire
+        const row = i % 2, col = Math.floor(i / 2);
+        const f = document.createElement('div');
+        f.className = 'fighter' + (row ? ' back' : '');
+        const off = col * (90 / Math.ceil(list.length / 2)) + row * 5;
+        f.style[team === 'gauche' ? 'right' : 'left'] = off + '%';
+        f.style.bottom = row ? '16%' : '0';
+        f.style.zIndex = String(20 - col * 2 - row);
+        f.style.setProperty('--dir', dir);
+        f.style.setProperty('--s', row ? 0.86 : 1 - col * 0.03);
+        f.style.setProperty('--dur', (0.7 + ((i * 37) % 9) / 10).toFixed(2) + 's');
+        f.style.setProperty('--delay', (-((i * 53) % 13) / 10).toFixed(2) + 's');
+        f.style.setProperty('--lunge', (10 + ((i * 7) % 4) * 6) + 'px');
+        f.innerHTML = `<img src="${url}" alt=""><b>${esc(d.name)}</b>`;
+        el.appendChild(f);
+      });
+    }
+    // bulletins de vote qui tombent
+    for (let i = 0; i < 12; i++) {
+      const b = document.createElement('div');
+      b.className = 'ballot';
+      b.style.left = (3 + ((i * 8.3) % 94)) + '%';
+      b.style.animationDuration = (7 + (i % 5) * 1.3) + 's';
+      b.style.animationDelay = ((i * 1.7) % 10) + 's';
+      $('#menu').prepend(b);
+    }
   }
   for (const b of document.querySelectorAll('.mode-btn')) {
     b.onclick = () => {
@@ -277,6 +328,7 @@
       <kbd>P</kbd> boutique (<kbd>flèches</kbd> + <kbd>Entrée</kbd> pour acheter ou améliorer) · <kbd>H</kbd> aide sur les statistiques · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause · <kbd>Maj</kbd>+sort : viser à la souris`;
   }
   renderMenu();
+  buildArena();
 
   function start(candId, team) {
     online = false;
