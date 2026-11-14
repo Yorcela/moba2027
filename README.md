@@ -78,11 +78,11 @@ Le bouton **📊 Statistiques** de l’accueil (ou l’adresse `…/#stats`) aff
 
 Supabase, ou tout autre Postgres, marche de la même façon. L’offre gratuite de Neon met la base en veille quand personne ne s’en sert ; le serveur réessaie le temps qu’elle se réveille.
 
-### Google Analytics (via Google Tag Manager)
+### Google Analytics
 
-`index.html` contient `window.GA_ID = 'GTM-N8K4TPWH'`, le conteneur Google Tag Manager du jeu. Un identifiant GA4 direct (`G-…`) marche aussi. Un bandeau demande l’accord du visiteur, comme l’exige la CNIL, et le conteneur n’est chargé qu’après acceptation. On peut changer d’avis en bas de la fenêtre Statistiques.
+`index.html` contient `window.GA_ID = 'G-N729Y7LPNV'`, l’ID de mesure GA4 du jeu. Un conteneur Google Tag Manager (`GTM-…`) marche aussi. Un bandeau demande l’accord du visiteur, comme l’exige la CNIL, et Google Analytics n’est chargé qu’après acceptation. On peut changer d’avis en bas de la fenêtre Statistiques.
 
-Dans GTM, il faut une balise **Google tag** avec l’ID de mesure GA4 (`G-…`), déclenchée sur *Initialization – All Pages*, puis **publier** le conteneur. Le jeu pousse aussi dans le `dataLayer` les événements `game_start` (`mode`, `duration`, `difficulty`, `candidate`, `matchmade`) et `game_end` (`mode`, `won`, `candidate`, `length`). Pour les voir dans GA, ajoutez une balise *Événement GA4* déclenchée par un *Événement personnalisé* `game_start|game_end` (expression régulière), avec ces variables de couche de données en paramètres.
+Le jeu envoie aussi les événements `game_start` (`mode`, `duration`, `difficulty`, `candidate`, `matchmade`) et `game_end` (`mode`, `won`, `candidate`, `length`). Ils apparaissent dans GA4, dans *Rapports → Engagement → Événements*.
 
 ## La carte
 
