@@ -38,20 +38,13 @@ const Analytics = (() => {
   function loadGA() {
     if (!GA_ID || gaOn) return;
     gaOn = true;
+    // balise Google fournie par GA4, chargée telle quelle (mais seulement après consentement)
     window.dataLayer = window.dataLayer || [];
-    if (GTM) {
-      // Google Tag Manager : les balises (dont GA4) se configurent dans le conteneur
-      window.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' });
-      const g = document.createElement('script');
-      g.async = true; g.src = 'https://www.googletagmanager.com/gtm.js?id=' + GA_ID;
-      document.head.appendChild(g);
-      return;
-    }
     window.gtag = function () { window.dataLayer.push(arguments); };
     window.gtag('js', new Date());
-    window.gtag('config', GA_ID);
+    if (!GTM) window.gtag('config', GA_ID); // avec un conteneur GTM-…, la configuration GA4 est dans le conteneur
     const s = document.createElement('script');
-    s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
+    s.async = true; s.src = 'https://www.googletagmanager.com/' + (GTM ? 'gtm.js' : 'gtag/js') + '?id=' + GA_ID;
     document.head.appendChild(s);
   }
   function consent() { return store.get('moba2027-consent'); }
@@ -73,12 +66,8 @@ const Analytics = (() => {
   }
   if (consent() === 'oui') loadGA();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', banner); else banner();
-  // événements de jeu : poussés dans le dataLayer (GTM) ou envoyés à GA4
-  function event(name, params) {
-    if (!gaOn) return;
-    if (GTM) window.dataLayer.push(Object.assign({ event: name }, params || {}));
-    else if (window.gtag) window.gtag('event', name, params || {});
-  }
+  // événements de jeu envoyés à GA4
+  function event(name, params) { if (gaOn && window.gtag) window.gtag('event', name, params || {}); }
 
   // ── Parties ──
   let soloRun = null;

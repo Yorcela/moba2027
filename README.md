@@ -80,7 +80,7 @@ Supabase, ou tout autre Postgres, marche de la même façon. L’offre gratuite 
 
 ### Google Analytics
 
-`index.html` contient `window.GA_ID = 'G-N729Y7LPNV'`, l’ID de mesure GA4 du jeu. Un conteneur Google Tag Manager (`GTM-…`) marche aussi. Un bandeau demande l’accord du visiteur, comme l’exige la CNIL, et Google Analytics n’est chargé qu’après acceptation. On peut changer d’avis en bas de la fenêtre Statistiques.
+`index.html` contient `window.GA_ID = 'GTM-MDHG2M87'`, la balise Google de la propriété GA4 `G-N729Y7LPNV`, chargée comme Google l’indique (`gtm.js` et `gtag('js', …)`). Un ID GA4 direct (`G-…`) marche aussi. Un bandeau demande l’accord du visiteur, comme l’exige la CNIL, et Google Analytics n’est chargé qu’après acceptation. On peut changer d’avis en bas de la fenêtre Statistiques.
 
 Le jeu envoie aussi les événements `game_start` (`mode`, `duration`, `difficulty`, `candidate`, `matchmade`) et `game_end` (`mode`, `won`, `candidate`, `length`). Ils apparaissent dans GA4, dans *Rapports → Engagement → Événements*.
 
