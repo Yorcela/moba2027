@@ -263,7 +263,8 @@
   #hud { position: fixed; inset: 0; pointer-events: none; }
   #hud > * { pointer-events: auto; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(6px); }
-  #top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: stretch; padding: 8px 10px; }
+  #top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); padding: 8px 10px 6px; }
+  #top .top-row { display: flex; gap: 10px; align-items: stretch; }
   .obj { width: 190px; }
   .obj .on { font-weight: 800; font-size: 13px; display: flex; justify-content: space-between; }
   .obj .bar { position: relative; height: 10px; background: #0d1116; border-radius: 6px; margin: 4px 0 2px; overflow: hidden; }
@@ -272,6 +273,16 @@
   .obj .bar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: #fff; }
   .obj .st { font-size: 11.5px; color: var(--mute); }
   .obj.mid { width: 240px; }
+  /* score de chaque camp : bureaux conquis et parrainages */
+  #top .top-score { display: flex; justify-content: space-between; gap: 16px; margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--line); }
+  .tscore { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--mute); white-space: nowrap; }
+  .tscore.droite { flex-direction: row-reverse; }
+  .tscore .tn { font-weight: 800; font-size: 12.5px; }
+  .tscore.gauche .tn { color: var(--gl); } .tscore.droite .tn { color: var(--dl); }
+  .tscore b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .tscore .pb { width: 70px; height: 5px; background: #0d1116; border-radius: 3px; overflow: hidden; display: flex; }
+  .tscore .pb i { display: block; height: 100%; border-radius: 3px; }
+  .tscore.gauche .pb i { background: var(--g); } .tscore.droite .pb { justify-content: flex-end; } .tscore.droite .pb i { background: var(--d); }
   #timer { display: grid; place-items: center; font: 800 16px ui-monospace, monospace; padding: 0 6px; }
   #poll { position: fixed; top: 10px; right: 10px; width: 270px; padding: 10px 12px; }
   #poll h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
@@ -284,7 +295,6 @@
   .pb { grid-column: 1 / -1; height: 6px; background: #0d1116; border-radius: 4px; overflow: hidden; }
   .pb div { height: 100%; }
   .pk { grid-column: 1 / -1; font-size: 11px; color: var(--mute); }
-  #parr { font-size: 11.5px; color: #9be28f; margin-top: 4px; }
   #log { position: fixed; top: 10px; left: 10px; width: 330px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
   .ll { background: var(--panel); border-left: 4px solid; border-radius: 6px; padding: 4px 8px; font-size: 12.5px; }
   .ll span { color: var(--mute); font: 11px ui-monospace, monospace; margin-right: 4px; }
@@ -308,7 +318,8 @@
   .ab.locked .lock { display: grid; }
   #right-bottom { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   #me-dons { font: 800 18px ui-monospace, monospace; color: var(--gold); }
-  #me-items { display: grid; grid-template-columns: repeat(3, 30px); gap: 4px; }
+  #me-items { display: grid; grid-template-columns: repeat(4, 30px); gap: 4px; align-content: start; }
+  .slot-none { grid-column: 1 / -1; font-size: 11px; color: var(--mute); width: 126px; }
   .slot sub { position: absolute; right: 2px; bottom: 0; font: 800 9px system-ui; color: var(--gold); }
   .slot { position: relative; width: 30px; height: 30px; border-radius: 6px; background: #1c232d; border: 1px solid #3a4452; display: grid; place-items: center; font-size: 17px; }
   #btn-shop { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--gold); background: rgba(255,211,77,.12); font-weight: 800; }
@@ -366,7 +377,7 @@
   #end-poll { text-align: left; }
   #btn-replay { margin-top: 14px; padding: 10px 18px; border-radius: 10px; border: 0; background: var(--gold); color: #111; font-weight: 900; }
 
-  @media (max-width: 1100px) { #log, #help { display: none; } #poll { width: 220px; } .obj { width: 150px; } .obj.mid { width: 180px; } }
+  @media (max-width: 1100px) { #log, #help { display: none; } #poll { width: 220px; } .obj { width: 150px; } .obj.mid { width: 180px; } .tscore .pb { width: 40px; } .tscore .lbl { display: none; } .tscore { gap: 8px; } }
 </style>
 </head>
 <body>
@@ -485,12 +496,15 @@
 
 <div id="hud" class="hidden">
   <div id="top" class="panel">
+   <div class="top-row">
     <div class="obj" id="obj-top"><div class="on"><span>🏛️ Assemblée</span></div><div class="bar"><div class="fill-g"></div><div class="fill-d"></div></div><div class="st"></div></div>
     <div class="obj mid" id="obj-mid"><div class="on"><span>⭐ Élysée</span></div><div class="bar"><div class="fill-g"></div><div class="fill-d"></div></div><div class="st"></div></div>
     <div class="obj" id="obj-bot"><div class="on"><span>🏛️ Sénat</span></div><div class="bar"><div class="fill-g"></div><div class="fill-d"></div></div><div class="st"></div></div>
     <div id="timer"></div>
+   </div>
+   <div class="top-score"><div class="tscore gauche" id="ts-gauche"></div><div class="tscore droite" id="ts-droite"></div></div>
   </div>
-  <div id="poll" class="panel"><h3>Sondage · intentions de vote</h3><div id="poll-list"></div><div id="parr"></div></div>
+  <div id="poll" class="panel"><h3>Sondage · intentions de vote</h3><div id="poll-list"></div></div>
   <div id="log"></div>
   <canvas id="minimap"></canvas>
   <div id="bottom" class="panel">
@@ -524,8 +538,8 @@
 
 <div id="shop" class="hidden">
   <div class="shop-box panel">
-    <h2>Programme et matériel de campagne</h2>
-    <p class="hint">Adoptez des mesures de votre camp : chacune s’améliore jusqu’au niveau 5, plus chère à chaque fois mais plus puissante. Le matériel de campagne renforce tous vos militants.</p>
+    <h2>Boutique de campagne</h2>
+    <p class="hint">Achetez des statistiques, autant que vous voulez : chaque rang ajoute le même bonus et coûte 22 % de plus que le précédent. Les réductions (résistance, recharge…) sont plafonnées. Le matériel de campagne renforce tous vos militants.</p>
     <div id="shop-where"></div>
     <div id="shop-list"></div>
     <button id="shop-close">Fermer (Échap)</button>
@@ -541,14 +555,14 @@
   <div class="help-box panel">
     <h2>Comprendre les statistiques <small>(H pour fermer)</small></h2>
     <div class="help-grid">
-      <div><b>❤️ Crédibilité</b>Vos points de vie. Chaque polémique (attaque, sort) adverse la fait baisser. À 0, c’est le <b>scandale</b> : retour au QG, avec un délai d’1 s par point de sondage (3 à 15 s), et 15 % de votre score perdu. Elle remonte vite au QG et doucement ailleurs (plus avec les mesures de récupération).</div>
+      <div><b>❤️ Crédibilité</b>Vos points de vie. Chaque polémique (attaque, sort) adverse la fait baisser. À 0, c’est le <b>scandale</b> : retour au QG, avec un délai d’1 s par point de sondage (3 à 15 s), et 15 % de votre score perdu. Elle remonte vite au QG et doucement ailleurs (plus avec la stat Récupération).</div>
       <div><b>📊 Sondage (%)</b>Votre score dans les intentions de vote. Tout le monde part de 0 %. On gagne des indécis en convertissant des militants, en faisant voter les siens, en conquérant des bureaux et en récoltant les mairies. Les polémiques volent des points à la cible. Il débloque les sorts (5, 10, 15 et 30 %) et décide du vainqueur à la fin du temps.</div>
       <div><b>💪 Puissance (×)</b>Multiplicateur tiré du sondage : de ×0,85 à 0 % jusqu’à ×1,4. Il s’applique à la crédibilité max, aux dégâts et aux sorts.</div>
-      <div><b>💶 Dons (€)</b>L’argent de la campagne : +1,5 €/s, plus les conversions, les KO et les meetings. Il sert à acheter et améliorer des mesures et du matériel de campagne au QG (P).</div>
+      <div><b>💶 Dons (€)</b>L’argent de la campagne : +1,5 €/s, plus les conversions, les KO et les meetings. Il sert à acheter des statistiques et du matériel de campagne au QG (P).</div>
       <div><b>✍️ Parrainages</b>Gagnés dans les mairies et grâce au Sénat. Ils s’additionnent pour tout le camp et rapportent aussi du sondage. <b>Le premier camp à réunir 500 parrainages gagne la partie.</b> Chaque passage dans une mairie rapporte plus que le précédent.</div>
       <div><b>⚔️ Dégâts / vitesse d’attaque / portée</b>Les attaques automatiques partent seules sur l’ennemi dans votre cercle jaune (la portée). La vitesse d’attaque règle leur cadence.</div>
       <div><b>✨ Puissance des sorts / recharge</b>Augmente les dégâts, soins et boucliers des sorts ; la recharge raccourcit le délai entre deux utilisations. Toutes les recharges sont remises à zéro au scandale.</div>
-      <div><b>🛡️ Dégâts subis / récupération</b>Les mesures de résistance réduisent les dégâts reçus (jusqu’à −45 %) et font regagner de la crédibilité chaque seconde.</div>
+      <div><b>🛡️ Dégâts subis / récupération</b>Les stats Résistance et Récupération réduisent les dégâts reçus (jusqu’à −45 %) et font regagner de la crédibilité chaque seconde.</div>
       <div><b>🎭 Classes</b><b>Tank</b> (voie de l’Assemblée) : solide, contrôle et protège. <b>DPS</b> (avenue de l’Élysée) : fait mal. <b>Soutien</b> (voie du Sénat) : soigne et protège. Les neutres sont 12 % plus faibles.</div>
       <div><b>🏆 Gagner</b>L’Élysée (16 bulletins) <b>et</b> la majorité à l’Assemblée ou au Sénat (10 bulletins). Vos militants votent après avoir conquis les bureaux adverses de leur voie. Ou bien réunir <b>500 parrainages</b> (mairies, Sénat). Sinon, à la fin du temps, le premier des sondages l’emporte pour son camp.</div>
     </div>

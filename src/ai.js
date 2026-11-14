@@ -61,6 +61,14 @@ const AI = (() => {
       if (c.dons >= nx.cost) { Game.buy(c, id); return; }
       return; // on économise pour l'objet suivant
     }
+    // liste finie : on continue à monter la stat principale la moins chère
+    let best = null;
+    for (const id of new Set(order)) {
+      if (ITEM_BY_ID[id].team) continue;
+      const nx = Game.itemNext(c, id);
+      if (nx && (!best || nx.cost < best.cost)) best = { id, cost: nx.cost };
+    }
+    if (best && c.dons >= best.cost) Game.buy(c, best.id);
   }
 
   function useAbilities(S, c, foe, mode) {

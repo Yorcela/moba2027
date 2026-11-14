@@ -149,7 +149,7 @@ const Game = (() => {
     const b = { dmg: 0, ap: 0, hp: 0, spd: 0, range: 0, as: 0, cdr: 0, armor: 0, regen: 0, income: 0, discount: 0 };
     for (const id of c.items) {
       const it = ITEM_BY_ID[id];
-      const v = it.lv[c.lv[id] - 1].v;
+      const v = statValue(it, c.lv[id]);
       b[it.stat] += v;
       if (it.stat === 'range') b.dmg += v / 400;
     }
@@ -507,7 +507,7 @@ const Game = (() => {
 
   function inOwnQG(c) { return U.dist(c, MAP.QG[c.team]) <= CFG.qgRadius + 20; }
 
-  // prochain niveau d'un objet : de plus en plus cher, de plus en plus puissant
+  // prochain rang d'une stat : chaque rang coûte 22 % de plus que le précédent
   function itemNext(c, id) {
     const it = ITEM_BY_ID[id];
     const off = 1 - ((c.st && c.st.discount) || 0); // mesures d'économies : tout coûte moins cher
@@ -516,9 +516,9 @@ const Game = (() => {
       return lvl >= 3 ? null : { lvl: lvl + 1, name: it.name, cost: Math.round(it.cost * (lvl + 1) * off), desc: it.desc };
     }
     const lvl = c.lv[id] || 0;
-    if (lvl >= it.lv.length) return null;
-    const L = it.lv[lvl];
-    return { lvl: lvl + 1, name: itemName(it, c.team, lvl + 1), cost: Math.round(L.cost * off), desc: it.fmt(L.v) };
+    const max = statMaxRank(it);
+    if (max != null && lvl >= max) return null;
+    return { lvl: lvl + 1, name: it.name, cost: Math.round(it.cost * Math.pow(STAT_GROWTH, lvl) * off), desc: it.fmt(statValue(it, lvl + 1)) };
   }
   function buy(c, id) {
     const it = ITEM_BY_ID[id];
@@ -526,7 +526,6 @@ const Game = (() => {
     if (!c.dead && !inOwnQG(c)) return 'Achats uniquement au QG de campagne';
     const nx = itemNext(c, id);
     if (!nx) return 'Niveau maximum atteint';
-    if (!it.team && !c.lv[id] && c.items.length >= 6) return 'Inventaire plein (6)';
     if (c.dons < nx.cost) return 'Pas assez de dons';
     if (it.team) {
       const up = S.teams[c.team].up;
@@ -1059,7 +1058,7 @@ const Game = (() => {
         const it = ITEM_BY_ID[msg.id];
         if (!it) return null;
         const nx = itemNext(c, it.id);
-        return buy(c, it.id) || `${nx.name} (niv. ${nx.lvl}) : acheté`;
+        return buy(c, it.id) || (it.team ? `${nx.name} (niv. ${nx.lvl}) : acheté` : `${nx.name} rang ${nx.lvl} : ${nx.desc}`);
       }
     }
     return null;

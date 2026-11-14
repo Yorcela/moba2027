@@ -543,12 +543,14 @@
       const nx = Game.itemNext(p, it.id);
       const cur = it.team ? S.teams[p.team].up[it.key] : p.lv[it.id] || 0;
       b.disabled = !inQG || !nx || p.dons < nx.cost;
-      const max = it.team ? 3 : it.lv.length;
-      b.querySelector('.nm').textContent = nx ? (cur ? `Améliorer : ${nx.name}` : nx.name) : itemName(it, p.team, max);
-      b.querySelector('.ds').textContent = nx ? (cur && !it.team ? `${it.fmt(it.lv[cur - 1].v)} → ` : '') + nx.desc : `Niveau maximum : ${it.team ? it.desc : it.fmt(it.lv[max - 1].v)}`;
+      // matériel de campagne : 3 niveaux ; stats : rangs illimités (ou jusqu'au plafond)
+      const max = it.team ? 3 : statMaxRank(it);
+      b.querySelector('.nm').textContent = it.name;
+      b.querySelector('.ds').textContent = it.team ? it.desc
+        : nx ? (cur ? `${it.fmt(statValue(it, cur))} → ` : '') + nx.desc : `Plafond atteint : ${it.fmt(statValue(it, cur))}`;
       b.querySelector('.pr').textContent = nx ? nx.cost + ' €' : '—';
-      b.querySelector('.lv').textContent = `niv. ${cur}/${max}`;
-      b.querySelector('.pips').innerHTML = Array.from({ length: max }, (_, k) => `<i class="${k < cur ? 'on' : ''}"></i>`).join('');
+      b.querySelector('.lv').textContent = it.team ? `niv. ${cur}/3` : max != null ? `rang ${cur}/${max}` : `rang ${cur}`;
+      b.querySelector('.pips').innerHTML = it.team ? Array.from({ length: 3 }, (_, k) => `<i class="${k < cur ? 'on' : ''}"></i>`).join('') : '';
       b.classList.toggle('sel', shopOrder[shopSel] === it);
     }
   }
@@ -707,19 +709,27 @@
         : `${Math.abs(o.gauge)}/${o.max} bulletins` + (open ? ' · voie ouverte' : '');
     }
     $('#poll-list').innerHTML = pollRows(S);
-    $('#parr').textContent = `Parrainages (victoire à ${CFG.parrainagesWin}) — gauche : ${Math.floor(S.teams.gauche.parrainages)} · droite : ${Math.floor(S.teams.droite.parrainages)}`;
+    // barre du haut : bureaux adverses conquis et parrainages de chaque camp
+    for (const t of ['gauche', 'droite']) {
+      const foe = S.bureaux.filter((b) => b.home !== t);
+      const won = foe.filter((b) => b.owner === t).length;
+      const parr = Math.floor(S.teams[t].parrainages);
+      $('#ts-' + t).innerHTML = `<span class="tn">${TEAMS[t].name}</span>
+        <span title="Bureaux de vote adverses conquis">🗳️ <b>${won}/${foe.length}</b><span class="lbl"> bureaux</span></span>
+        <span title="Parrainages (victoire à ${CFG.parrainagesWin})">✍️ <b>${parr}/${CFG.parrainagesWin}</b><span class="lbl"> parrainages</span></span>
+        <span class="pb" aria-hidden="true"><i style="width:${Math.min(100, (parr / CFG.parrainagesWin) * 100)}%"></i></span>`;
+    }
     $('#me-hp').style.width = U.clamp(p.hp / p.st.maxHp, 0, 1) * 100 + '%';
     $('#me-hpt').textContent = p.dead ? `Retour dans ${Math.ceil(p.respawnAt - S.t)} s` : `Crédibilité ${Math.ceil(p.hp)} / ${Math.ceil(p.st.maxHp)}`;
     $('#me-dons').textContent = Math.floor(p.dons) + ' €';
     const nextK = ['Q', 'W', 'E', 'R'].find((k) => !Game.unlocked(p, k));
     $('#me-poll').textContent = p.I.toFixed(1) + ' % · puissance ×' + p.st.m.toFixed(2)
       + (nextK ? ` · ${KEY_LABEL[nextK]} à ${CFG.unlock[nextK]} %` : ' · tous les sorts débloqués');
-    $('#me-items').innerHTML = Array.from({ length: 6 }, (_, i) => {
-      const id = p.items[i];
-      if (!id) return '<span class="slot" title="vide"></span>';
-      const it = ITEM_BY_ID[id], L = it.lv[p.lv[id] - 1];
-      return `<span class="slot" title="${itemName(it, p.team, p.lv[id])} (niv. ${p.lv[id]}/${it.lv.length}) — ${it.fmt(L.v)}">${it.icon}<sub>${p.lv[id]}</sub></span>`;
-    }).join('');
+    // stats achetées (autant qu'on veut) : icône + rang
+    $('#me-items').innerHTML = p.items.length ? p.items.map((id) => {
+      const it = ITEM_BY_ID[id], r = p.lv[id];
+      return `<span class="slot" title="${it.name} (rang ${r}) — ${it.fmt(statValue(it, r))}">${it.icon}<sub>${r}</sub></span>`;
+    }).join('') : '<span class="slot-none">Aucune stat achetée (P)</span>';
     const e = p.def.fem ? 'e' : '';
     let status = '';
     if (p.channel && p.channel.type === 'camp') status = `${p.channel.camp.name} : restez immobile encore ${Math.ceil(p.channel.until - S.t)} s (bouger annule)`;
