@@ -143,6 +143,49 @@
   .modal-x:hover { border-color: #ffd166; }
   .modal .opts-panel { max-width: none; background: transparent; border: 0; padding: 0; }
   .modal .rules { margin-bottom: 0; }
+  /* statistiques */
+  .modal-box.wide { width: min(980px, 100%); }
+  .stats h4 small { color: var(--mute); text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .st-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 6px; }
+  .st-tile { padding: 12px 14px; border-radius: 12px; background: #161c25; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+  .st-tile b { font: 400 30px 'Anton', Impact, sans-serif; color: #f3f5fa; font-variant-numeric: tabular-nums; }
+  .st-tile span { color: var(--text); font-weight: 600; }
+  .st-tile small { color: var(--mute); }
+  .st-table-wrap { overflow-x: auto; }
+  .st-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .st-table th, .st-table td { padding: 6px 8px; text-align: right; border-bottom: 1px solid rgba(255,255,255,.07); white-space: nowrap; }
+  .st-table th:first-child, .st-table td:first-child { text-align: left; }
+  .st-table th { color: var(--mute); font-weight: 600; }
+  .st-table th button { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+  .st-table th button.on, .st-table th button:hover { color: #ffd166; }
+  .st-table tbody tr:hover { background: rgba(255,255,255,.04); }
+  .st-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; background: var(--mute); }
+  .st-dot.gauche { background: var(--g); } .st-dot.droite { background: var(--d); }
+  .st-days { display: flex; align-items: flex-end; gap: 2px; height: 90px; padding-bottom: 1px; border-bottom: 1px solid rgba(255,255,255,.18); }
+  .st-days div { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+  .st-days div:hover { background: rgba(255,255,255,.05); }
+  .st-days i { display: block; width: 100%; background: #ffd166; border-radius: 4px 4px 0 0; }
+  .st-days-axis { display: flex; justify-content: space-between; color: var(--mute); font-size: 11px; margin-top: 4px; }
+  .st-split-row { display: grid; grid-template-columns: minmax(150px, 1.1fr) 2fr; gap: 10px; align-items: center; margin: 6px 0; font-size: 13px; }
+  .st-split-row small, .st-none { color: var(--mute); font-style: normal; }
+  .st-split { display: flex; gap: 2px; height: 22px; }
+  .st-split i { display: flex; align-items: center; padding: 0 8px; min-width: 0; overflow: hidden; white-space: nowrap; font-style: normal; font-size: 12px; font-weight: 600; color: #fff; border-radius: 4px; }
+  .st-split i.g { background: var(--g); } .st-split i.d { background: var(--d); justify-content: flex-end; }
+  .st-hbar { display: grid; grid-template-columns: minmax(120px, 1.3fr) 2fr auto; gap: 10px; align-items: center; margin: 5px 0; font-size: 13px; }
+  .st-hbar div { height: 12px; }
+  .st-hbar i { display: block; height: 100%; background: #ffd166; border-radius: 0 4px 4px 0; }
+  .st-hbar b { font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; }
+  .st-hbar small { color: var(--mute); font-weight: 400; }
+  .st-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 24px; }
+  .st-link { background: none; border: 0; padding: 0; color: #ffd166; text-decoration: underline; cursor: pointer; font: inherit; }
+  @media (max-width: 560px) { .st-split-row, .st-hbar { grid-template-columns: 1fr; gap: 3px; } .st-hbar b { text-align: left; } }
+  /* bandeau de consentement (Google Analytics) */
+  #consent { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 80; max-width: 560px; margin: 0 auto; padding: 14px 16px; border-radius: 14px;
+    background: #10141b; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 10px 30px rgba(0,0,0,.5); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  #consent p { margin: 0; flex: 1 1 260px; color: #c3c9d8; font-size: 13px; }
+  #consent div { display: flex; gap: 8px; }
+  #consent button { padding: 8px 14px; border-radius: 10px; border: 1px solid #3a4452; background: #1c232d; color: var(--text); cursor: pointer; }
+  #consent #consent-yes { background: #ffd166; color: #231402; border-color: #ffd166; font-weight: 600; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
   .opts-panel { max-width: 760px; margin: 0 auto; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; text-align: left;
@@ -400,10 +443,14 @@
       </ul>
     </div>
     </div></div>
+    <div class="modal hidden" id="stats-box" role="dialog" aria-modal="true" aria-labelledby="stats-box-t"><div class="modal-box wide"><div class="modal-head"><h3 id="stats-box-t">📊 Statistiques</h3><button type="button" class="modal-x" data-close aria-label="Fermer">✕</button></div>
+    <div class="opts-panel stats" id="stats-body"></div>
+    </div></div>
     <nav id="home-links" aria-label="Menu secondaire">
       <button type="button" data-modal="opts-box">⚙️ Options</button>
       <button type="button" data-modal="rules">📜 Règles du jeu</button>
       <button type="button" data-modal="credits-box">🎬 Crédits</button>
+      <button type="button" data-modal="stats-box">📊 Statistiques</button>
     </nav>
     <div id="modes">
       <button class="mode-btn primary" data-mode="solo"><b>Jouer en solo</b><span>Avec et contre des bots · vous choisissez votre camp</span></button>
@@ -514,7 +561,11 @@
 <script>
   // Adresse du serveur de jeu en ligne si le jeu est hébergé ailleurs (ex. GitHub Pages) :
   // window.MOBA_SERVER = 'wss://mon-serveur.example/ws';
+  // Mesure d'audience : conteneur Google Tag Manager (GTM-…) ou mesure GA4 directe (G-…) ;
+  // vide = rien. Le script n'est chargé qu'après l'accord du visiteur (bandeau de consentement).
+  window.GA_ID = 'GTM-N8K4TPWH';
 </script>
+<script src="src/analytics.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/net.js"></script>
 <script src="src/ui.js"></script>

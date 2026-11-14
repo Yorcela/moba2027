@@ -11,6 +11,7 @@ const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
+const { createStats } = require('./stats');
 
 const PORT = +process.env.PORT || 8080;
 const ROOT = path.join(__dirname, '..');
@@ -32,6 +33,7 @@ function makeEngine() {
   return vm.runInContext('({ Game, CFG, CAND_BY_ID, CANDIDATES, TEAMS, MAP })', ctx);
 }
 const REF = makeEngine(); // pour les données des candidats (lecture seule)
+const STATS = createStats({ databaseUrl: process.env.DATABASE_URL, file: process.env.STATS_FILE || path.join(ROOT, 'data', 'stats.jsonl'), cands: REF.CAND_BY_ID });
 
 // ── Fichiers statiques ──
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.txt': 'text/plain; charset=utf-8', '.mp3': 'audio/mpeg' };
@@ -40,6 +42,7 @@ const server = http.createServer((req, res) => {
   try { p = decodeURIComponent((req.url || '/').split('?')[0]); } catch (e) { p = ''; }
   if (p === '/') p = '/index.html';
   if (p === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok'); }
+  if (p.startsWith('/api/')) return api(req, res, p);
   const ok = /^\/(index\.html|map\.html|src\/[\w-]+\.js|docs\/[\w-]+\.(jpg|png)|assets\/[\w\/-]+\.(glb|gltf|bin|png|jpg|txt|mp3))$/.test(p) && !p.includes('..');
   const file = path.join(ROOT, p);
   if (!ok || !file.startsWith(ROOT + path.sep)) { res.writeHead(404); return res.end('Introuvable'); }
@@ -60,6 +63,28 @@ const server = http.createServer((req, res) => {
     fs.createReadStream(file).pipe(res);
   });
 });
+
+// ── API des statistiques (ouverte aux autres origines : le jeu peut être sur GitHub Pages) ──
+function api(req, res, p) {
+  const head = { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST', 'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' };
+  const json = (code, obj) => { res.writeHead(code, head); res.end(JSON.stringify(obj)); };
+  if (req.method === 'OPTIONS') { res.writeHead(204, head); return res.end(); }
+  if (p === '/api/stats' && req.method === 'GET') return json(200, STATS.summary());
+  if (p === '/api/stats/solo' && req.method === 'POST') {
+    let body = '', big = false;
+    req.on('data', (d) => { body += d; if (body.length > 8192) { big = true; req.destroy(); } });
+    req.on('end', () => {
+      if (big) return;
+      let msg = null;
+      try { msg = JSON.parse(body); } catch (e) { /* invalide */ }
+      const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+      const err = STATS.soloReport(msg, ip);
+      json(err ? 400 : 200, err ? { error: err } : { ok: true });
+    });
+    return;
+  }
+  json(404, { error: 'introuvable' });
+}
 
 // ── Joueurs, salles, files d'attente ──
 const rooms = new Map(); // code → salle
@@ -221,6 +246,8 @@ function startGame(room) {
   room.S = E.Game.newGame(null, null, E.Game.buildRoster(picks), { online: true });
   room.phase = 'play';
   room.step = 0;
+  room.cids = room.players.map((p) => p.cid).filter(Boolean);
+  STATS.gameStart(room.mode, room.matchmade, room.cids);
   const roster = room.S.cands.map((c) => ({ id: c.id, candId: c.def.id, team: c.team, pid: c.pid || 0, name: c.pname || '' }));
   for (const p of room.players) send(p, { t: 'start', roster, you: p.id, timeLimit: E.CFG.timeLimit, mode: room.mode, code: room.code });
   let last = process.hrtime.bigint(), acc = 0;
@@ -238,6 +265,7 @@ function startGame(room) {
       // dernier instantané avec le résultat, puis la salle se ferme
       room.phase = 'over';
       broadcastSnap(room);
+      STATS.gameEnd(room.S, { mode: room.mode, mm: room.matchmade, dur: room.duration, cids: room.cids });
       clearInterval(room.loop); room.loop = null;
       for (const p of room.players) p.room = null;
       room.players = [];
@@ -306,6 +334,7 @@ function onMessage(pl, raw) {
   switch (msg.t) {
     case 'hello':
       pl.name = String(msg.name || '').replace(/[<>&"'`]/g, '').trim().slice(0, MAX_NAME) || pl.name;
+      if (typeof msg.cid === 'string' && /^[a-z0-9-]{8,40}$/i.test(msg.cid)) pl.cid = msg.cid; // identifiant anonyme du navigateur
       return send(pl, { t: 'welcome', id: pl.id, name: pl.name });
     case 'create': {
       const team = ['gauche', 'droite'].includes(msg.team) ? msg.team : null;

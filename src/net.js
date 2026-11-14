@@ -39,14 +39,14 @@ const Net = (() => {
   // se connecte (ou réutilise la connexion ouverte) et présente le joueur
   function connect(url, name) {
     url = normUrl(url);
-    if (connected() && ws.url === url) { send({ t: 'hello', name }); return Promise.resolve(); }
+    if (connected() && ws.url === url) { send({ t: 'hello', name, cid: Analytics.cid() }); return Promise.resolve(); }
     if (ws) { const old = ws; ws = null; try { old.close(); } catch (e) { /* ignore */ } }
     return new Promise((resolve, reject) => {
       let sock;
       try { sock = new WebSocket(url); } catch (e) { reject(new Error('Adresse de serveur invalide')); return; }
       ws = sock;
       let opened = false;
-      sock.onopen = () => { opened = true; send({ t: 'hello', name }); resolve(); };
+      sock.onopen = () => { opened = true; send({ t: 'hello', name, cid: Analytics.cid() }); resolve(); };
       sock.onerror = () => { if (!opened) reject(new Error('Impossible de joindre le serveur ' + url)); };
       sock.onclose = () => { if (ws === sock) ws = null; if (opened) emit('close', {}); };
       sock.onmessage = (ev) => {

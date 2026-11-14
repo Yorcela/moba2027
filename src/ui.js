@@ -67,6 +67,7 @@
     closeModal();
     const m = $('#' + id);
     m.classList.remove('hidden');
+    if (id === 'stats-box') Analytics.render($('#stats-body'));
     modalOpener = opener || null;
     m.querySelector('.modal-x').focus();
   }
@@ -79,6 +80,8 @@
     return true;
   }
   for (const b of document.querySelectorAll('[data-modal]')) b.onclick = () => openModal(b.dataset.modal, b);
+  // lien direct vers les statistiques : …/#stats
+  if (location.hash === '#stats') setTimeout(() => openModal('stats-box', $('[data-modal="stats-box"]')), 0);
   for (const m of document.querySelectorAll('.modal')) {
     m.addEventListener('click', (e) => { if (e.target === m || e.target.closest('[data-close]')) closeModal(); });
   }
@@ -401,14 +404,17 @@
   renderMenu();
   buildArena();
 
+  let playMode = 'solo';
   function start(candId, team) {
-    online = false;
+    online = false; playMode = 'solo';
     Game.newGame(candId, team);
+    Analytics.gameStart('solo', { duration: prefs.duration, difficulty: prefs.difficulty, candidate: candId });
     beginPlay();
   }
   function startOnline(msg) {
-    online = true;
+    online = true; playMode = msg.mode;
     Net.startGame(msg);
+    Analytics.gameStart(msg.mode, { matchmade: lobby.room && lobby.room.matchmade ? 1 : 0 });
     beginPlay();
   }
   function beginPlay() {
@@ -816,6 +822,7 @@
   function showEnd() {
     const S = Game.S;
     running = false; endShown = true;
+    Analytics.gameEnd(S, playMode);
     updateHUD();
     $('#respawn').classList.add('hidden'); gl.classList.remove('dead');
     const pr = S.president, won = S.winner === S.player.team;

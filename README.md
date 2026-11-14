@@ -58,6 +58,32 @@ Un hébergement **statique** comme GitHub Pages suffit pour le solo, mais **pas*
 
 Rien n’est déployé publiquement pour l’instant.
 
+## Statistiques
+
+Le bouton **📊 Statistiques** de l’accueil (ou l’adresse `…/#stats`) affiche les statistiques de jeu : joueurs uniques, parties commencées et terminées par mode (solo, coop avec code, coop en matchmaking, 3 contre 3), activité sur 30 jours, victoires par camp, façons de gagner, taux de victoire en solo par difficulté, et un tableau des candidats qu’on peut trier (taux de victoire, fois élu, sondage moyen, KO, scandales). Ce tableau sert à l’équilibrage.
+
+- Le serveur enregistre les parties en ligne. Le navigateur signale les parties solo (`POST /api/stats/solo`, données vérifiées et limitées par adresse IP). La synthèse est servie par `GET /api/stats` (CORS ouvert pour GitHub Pages).
+- Les joueurs sont comptés grâce à un identifiant aléatoire stocké dans le navigateur. Aucune donnée personnelle n’est enregistrée.
+- **Stockage.** Si la variable `DATABASE_URL` est renseignée, les données vont dans une base **Postgres**, dans la table `stats_rows`, créée automatiquement. Sinon, elles vont dans un fichier JSON Lines : `data/stats.jsonl`, ou le chemin donné par `STATS_FILE`. Le disque de Render gratuit est effacé à chaque redéploiement et à chaque mise en veille, donc **en production, il faut la base**.
+- Si la base est injoignable au démarrage, le jeu fonctionne quand même. Le serveur réessaie plusieurs fois, et la fenêtre Statistiques indique que les chiffres sont incomplets.
+
+#### Brancher une base gratuite (Neon)
+
+1. Créez un compte sur [neon.tech](https://neon.tech), puis un projet. La région Europe (Francfort) est la plus proche de Render.
+2. Copiez la *connection string* (`postgresql://…@….neon.tech/neondb?sslmode=require`).
+3. Sur Render, dans le service `moba2027`, onglet *Environment* : ajoutez `DATABASE_URL` avec cette valeur, puis enregistrez. Render redéploie le service.
+4. Le journal de Render doit afficher `Statistiques : 0 lignes chargées (Postgres)`.
+
+**Avec la base Postgres de Render** : utilisez l’*Internal Database URL* (hôte `dpg-…-a`, sans domaine). Elle ne passe que par le réseau privé de Render, et le serveur s’y connecte sans SSL. Dans *Networking* / *Access Control* de la base, retirez toutes les adresses autorisées pour bloquer tout accès depuis Internet. Attention : la base Postgres gratuite de Render expire au bout de 30 jours.
+
+Supabase, ou tout autre Postgres, marche de la même façon. L’offre gratuite de Neon met la base en veille quand personne ne s’en sert ; le serveur réessaie le temps qu’elle se réveille.
+
+### Google Analytics (via Google Tag Manager)
+
+`index.html` contient `window.GA_ID = 'GTM-N8K4TPWH'`, le conteneur Google Tag Manager du jeu. Un identifiant GA4 direct (`G-…`) marche aussi. Un bandeau demande l’accord du visiteur, comme l’exige la CNIL, et le conteneur n’est chargé qu’après acceptation. On peut changer d’avis en bas de la fenêtre Statistiques.
+
+Dans GTM, il faut une balise **Google tag** avec l’ID de mesure GA4 (`G-…`), déclenchée sur *Initialization – All Pages*, puis **publier** le conteneur. Le jeu pousse aussi dans le `dataLayer` les événements `game_start` (`mode`, `duration`, `difficulty`, `candidate`, `matchmade`) et `game_end` (`mode`, `won`, `candidate`, `length`). Pour les voir dans GA, ajoutez une balise *Événement GA4* déclenchée par un *Événement personnalisé* `game_start|game_end` (expression régulière), avec ces variables de couche de données en paramètres.
+
 ## La carte
 
 ![Carte](docs/carte.jpg)
@@ -164,9 +190,11 @@ src/game.js     moteur de règles
 src/ai.js       IA des candidats non joueurs
 src/render.js   rendu 2D (texture du sol, carte de map.html, mini-carte)
 src/render3d.js rendu 3D : ville, bâtiments, candidats caricaturés, militants
+src/analytics.js statistiques (identifiant anonyme, parties solo, Google Analytics, fenêtre Stats)
 src/ui.js       menu, HUD, contrôles souris / clavier, surcouche, boucle de jeu
 src/net.js      client en ligne : connexion, miroir de l’état, interpolation des instantanés
 src/audio.js    musique et effets sonores synthétisés (Web Audio)
+server/stats.js  statistiques de jeu : enregistrement (Postgres ou JSON Lines) et synthèse pour /api/stats
 server/server.js serveur en ligne : salles, codes, matchmaking, sélection, moteur à 60 Hz
 ```
 
