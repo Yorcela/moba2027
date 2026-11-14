@@ -258,7 +258,7 @@ for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {
 // Sources : presse (nov. 2026) et candidats2027.org ; sans slogan connu, nom du mouvement ou phrase par défaut.
 const CATCHPHRASES = {
   melenchon: { text: 'La force de tout changer !', pitch: 0.9, audio: 'assets/sfx/victoire-melenchon.mp3' },
-  glucksmann: { text: 'Réveiller la France !', audio: 'assets/music/la-marseillaise.mp3' }, // La Marseillaise (8 bits)
+  glucksmann: { text: 'Réveiller la France !', audio: 'assets/sfx/victoire-glucksmann.mp3' },
   tondelier: { text: 'Tenez bon, nous arrivons !' },
   roussel: { text: 'Vivre !' },
   ruffin: { text: 'Nous président !' },
