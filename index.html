@@ -129,8 +129,22 @@
   #mode-head { display: flex; align-items: center; gap: 14px; margin: 4px 0 16px; flex-wrap: wrap; }
   #mode-head .logo { font-size: clamp(30px, 4vw, 44px); }
   #mode-head h2 { margin: 0; font: 600 22px 'Barlow Condensed', system-ui, sans-serif; color: #c3c9d8; }
-  details.rules-box { margin: 6px 0 14px; }
-  #opts-box { margin-bottom: 0; }
+  /* liens de l'accueil et fenêtres modales (options, règles, crédits) */
+  #home-links { order: -1; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: -2px 0 14px; }
+  #home-links button { padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); background: rgba(16,20,27,.7);
+    color: #c3c9d8; font: 600 17px 'Barlow Condensed', system-ui, sans-serif; letter-spacing: .03em; }
+  #home-links button:hover, #home-links button:focus-visible { color: #fff; border-color: #ffd166; }
+  .modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(4,6,10,.72); backdrop-filter: blur(3px); animation: fadeIn .15s ease-out; }
+  .modal-box { width: min(820px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #10141b; border: 1px solid rgba(255,255,255,.14); border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6); padding: 16px 18px 18px; animation: pop .18s ease-out; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .modal-head h3 { margin: 0; font: 400 26px 'Anton', Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #f3f5fa; }
+  .modal-x { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #3a4452; background: #1c232d; font-size: 16px; }
+  .modal-x:hover { border-color: #ffd166; }
+  .modal .opts-panel { max-width: none; background: transparent; border: 0; padding: 0; }
+  .modal .rules { margin-bottom: 0; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
   .opts-panel { max-width: 760px; margin: 0 auto; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; text-align: left;
     font-family: 'Barlow Condensed', system-ui, sans-serif; font-size: 15px; }
   .opts-panel h4 { margin: 12px 0 6px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #ffd166; }
@@ -155,7 +169,8 @@
   @media (prefers-reduced-motion: reduce) { .fighter, .ballot, .pow, .vs, .badge i, #modes .mode-btn.primary { animation: none !important; } .pow, .ballot { display: none; } }
   .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 22px; }
   .rule { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
-  .rule b { display: block; margin-bottom: 4px; }
+  .rule > b { display: block; margin-bottom: 4px; }
+  .modal .rules { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
   .rule span { color: var(--mute); font-size: 13px; }
   #pick-teams { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
   .team-btn { min-width: 200px; padding: 14px 20px; border-radius: 12px; border: 2px solid var(--line); background: var(--panel); font-weight: 800; font-size: 18px; }
@@ -350,8 +365,8 @@
   </section>
   <div class="menu-box">
     <div id="mode-head" class="hidden"><button class="btn" id="btn-home">← Accueil</button><div class="logo">Élysée<span>27</span></div><h2 id="mode-title"></h2></div>
-    <details class="rules-box" id="opts-box"><summary>⚙️ Options</summary><div class="opts-panel" id="options"></div></details>
-    <details class="rules-box" id="rules"><summary>📜 Règles du jeu</summary>
+    <div class="modal hidden" id="opts-box" role="dialog" aria-modal="true" aria-labelledby="opts-box-t"><div class="modal-box"><div class="modal-head"><h3 id="opts-box-t">⚙️ Options</h3><button type="button" class="modal-x" data-close aria-label="Fermer">✕</button></div><div class="opts-panel" id="options"></div></div></div>
+    <div class="modal hidden" id="rules" role="dialog" aria-modal="true" aria-labelledby="rules-t"><div class="modal-box"><div class="modal-head"><h3 id="rules-t">📜 Règles du jeu</h3><button type="button" class="modal-x" data-close aria-label="Fermer">✕</button></div>
     <p class="hint">Pour gagner : l’Élysée et une majorité à l’Assemblée ou au Sénat, ou 500 parrainages ; sinon, à la fin du temps, le premier des sondages l’emporte pour son camp.</p>
     <div class="rules">
       <div class="rule"><b>🗳️ Militants & bureaux</b><span>Vos militants partent du QG et vont déposer leurs bulletins. 6 bulletins conquièrent définitivement un bureau adverse. Quand tous les bureaux adverses d’une voie sont à vous, ils votent à l’objectif.</span></div>
@@ -359,8 +374,8 @@
       <div class="rule"><b>📊 Sondage</b><span>Tout le monde part de 0 %. Sorts débloqués à 5, 10, 15 et 30 %. À la fin du temps (5, 10 ou 15 min), le candidat en tête des sondages l’emporte pour son camp.</span></div>
       <div class="rule"><b>🏘️ Jungle</b><span>Mairies : parrainages. Meetings : dons. Entrée pour récolter : 12 s immobile chez soi, 7 s chez l’adversaire. Bouger annule.</span></div>
     </div>
-    </details>
-    <details class="rules-box" id="credits-box"><summary>🎬 Crédits</summary>
+    </div></div>
+    <div class="modal hidden" id="credits-box" role="dialog" aria-modal="true" aria-labelledby="credits-box-t"><div class="modal-box"><div class="modal-head"><h3 id="credits-box-t">🎬 Crédits</h3><button type="button" class="modal-x" data-close aria-label="Fermer">✕</button></div>
     <div class="opts-panel credits">
       <h4>Musique</h4>
       <ul>
@@ -384,7 +399,12 @@
         <li>Liste des candidats : <a href="https://poligraph.fr/elections/presidentielle-2027/candidats" target="_blank" rel="noopener">Poligraph</a></li>
       </ul>
     </div>
-    </details>
+    </div></div>
+    <nav id="home-links" aria-label="Menu secondaire">
+      <button type="button" data-modal="opts-box">⚙️ Options</button>
+      <button type="button" data-modal="rules">📜 Règles du jeu</button>
+      <button type="button" data-modal="credits-box">🎬 Crédits</button>
+    </nav>
     <div id="modes">
       <button class="mode-btn primary" data-mode="solo"><b>Jouer en solo</b><span>Avec et contre des bots · vous choisissez votre camp</span></button>
       <button class="mode-btn" data-mode="coop"><b>🤝 En ligne · 3 joueurs contre les bots</b><span>Avec un code de salle à partager, ou en matchmaking.</span></button>

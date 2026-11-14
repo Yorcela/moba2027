@@ -57,12 +57,32 @@
     // accueil (titre, camps qui s'affrontent, boutons) ou écran du mode choisi
     $('#splash').classList.toggle('hidden', !!menuMode);
     $('#modes').classList.toggle('hidden', !!menuMode);
-    $('#rules').classList.toggle('hidden', !!menuMode);
-    $('#opts-box').classList.toggle('hidden', !!menuMode);
-    $('#credits-box').classList.toggle('hidden', !!menuMode);
+    $('#home-links').classList.toggle('hidden', !!menuMode);
     $('#mode-head').classList.toggle('hidden', !menuMode);
     $('#mode-title').textContent = menuMode ? MODE_TITLES[menuMode] : '';
   }
+  // fenêtres modales de l'accueil : options, règles, crédits
+  let modalOpener = null;
+  function openModal(id, opener) {
+    closeModal();
+    const m = $('#' + id);
+    m.classList.remove('hidden');
+    modalOpener = opener || null;
+    m.querySelector('.modal-x').focus();
+  }
+  function closeModal() {
+    const m = document.querySelector('.modal:not(.hidden)');
+    if (!m) return false;
+    m.classList.add('hidden');
+    if (modalOpener) modalOpener.focus();
+    modalOpener = null;
+    return true;
+  }
+  for (const b of document.querySelectorAll('[data-modal]')) b.onclick = () => openModal(b.dataset.modal, b);
+  for (const m of document.querySelectorAll('.modal')) {
+    m.addEventListener('click', (e) => { if (e.target === m || e.target.closest('[data-close]')) closeModal(); });
+  }
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !running && closeModal()) e.preventDefault(); });
   $('#btn-home').onclick = () => {
     if (lobby.room || lobby.queue) return toast('Quittez d’abord la salle ou la file d’attente');
     menuMode = null; chosenTeam = null; renderModes();
