@@ -69,6 +69,9 @@ Le bouton **📊 Statistiques** de l’accueil (ou l’adresse `…/#stats`) aff
 
 #### Brancher une base gratuite (Neon)
 
+Le dépôt est relié au projet Neon `sweet-scene-59642916` (`neon init`, fichier `neon.ts`). En local, `npm run dev` lance le serveur avec les variables de `.env.local` : ce fichier est créé par `neon init` (ou `neon env pull`) et n’est jamais commité.
+
+
 1. Créez un compte sur [neon.tech](https://neon.tech), puis un projet. La région Europe (Francfort) est la plus proche de Render.
 2. Copiez la *connection string* (`postgresql://…@….neon.tech/neondb?sslmode=require`).
 3. Sur Render, dans le service `moba2027`, onglet *Environment* : ajoutez `DATABASE_URL` avec cette valeur, puis enregistrez. Render redéploie le service.

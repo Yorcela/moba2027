@@ -44,7 +44,11 @@ function pgStore(url) {
   let host = '';
   try { host = new URL(url).hostname; } catch (e) { /* adresse invalide : pg signalera l'erreur */ }
   const local = /^(localhost|127\.0\.0\.1)$/.test(host) || (!!host && !host.includes('.')) || /sslmode=disable/.test(url);
-  const pool = new Pool({ connectionString: url, max: 3, ssl: local ? false : { rejectUnauthorized: false } });
+  // à distance (Neon, Supabase…) : SSL avec vérification du certificat ; le sslmode de l'adresse est retiré
+  // pour que ce réglage s'applique tel quel (et sans l'avertissement de pg sur sslmode=require)
+  let conn = url;
+  try { const u = new URL(url); u.searchParams.delete('sslmode'); u.searchParams.delete('channel_binding'); conn = u.toString(); } catch (e) { /* ignore */ }
+  const pool = new Pool({ connectionString: conn, max: 3, ssl: local ? false : { rejectUnauthorized: true } });
   pool.on('error', (e) => console.error('Statistiques : connexion Postgres perdue', e.message));
   return {
     name: 'Postgres',
