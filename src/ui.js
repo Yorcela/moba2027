@@ -16,10 +16,12 @@
   let online = false, onlineMenu = false;
 
   // préférences (confort personnel, peut être indisponible)
-  const prefs = { controls: 'mixte', difficulty: 'facile', duration: 10, name: '', server: '' };
+  const prefs = { controls: 'mixte', difficulty: 'facile', duration: 10, name: '', server: '', musicVol: 0.45, sfxVol: 0.75, musicMute: false, sfxMute: false };
   try { Object.assign(prefs, JSON.parse(localStorage.getItem('moba2027-prefs') || '{}')); } catch (e) { /* stockage indisponible */ }
   function savePrefs() { try { localStorage.setItem('moba2027-prefs', JSON.stringify(prefs)); } catch (e) { /* ignore */ } }
   if (!DIFFICULTY[prefs.difficulty]) prefs.difficulty = 'facile';
+  Sound.set({ musicVol: +prefs.musicVol, sfxVol: +prefs.sfxVol, musicMute: !!prefs.musicMute, sfxMute: !!prefs.sfxMute });
+  Sound.music(true); // démarre au premier clic ou à la première touche
   CFG.difficulty = prefs.difficulty;
   if (!CFG.durations.includes(prefs.duration)) prefs.duration = 10;
   CFG.timeLimit = prefs.duration * 60;
@@ -56,6 +58,7 @@
     $('#splash').classList.toggle('hidden', !!menuMode);
     $('#modes').classList.toggle('hidden', !!menuMode);
     $('#rules').classList.toggle('hidden', !!menuMode);
+    $('#opts-box').classList.toggle('hidden', !!menuMode);
     $('#mode-head').classList.toggle('hidden', !menuMode);
     $('#mode-title').textContent = menuMode ? MODE_TITLES[menuMode] : '';
   }
@@ -85,7 +88,7 @@
         f.style.bottom = row ? '16%' : '0';
         f.style.zIndex = String(20 - col * 2 - row);
         f.style.setProperty('--dir', dir);
-        f.style.setProperty('--s', row ? 0.86 : 1 - col * 0.03);
+        f.style.setProperty('--s', (row ? 0.86 : 1 - col * 0.03) * ((d.look && d.look.height) || 1)); // tailles relatives (Teddy Riner ×1,5)
         f.style.setProperty('--dur', (0.7 + ((i * 37) % 9) / 10).toFixed(2) + 's');
         f.style.setProperty('--delay', (-((i * 53) % 13) / 10).toFixed(2) + 's');
         f.style.setProperty('--lunge', (10 + ((i * 7) % 4) * 6) + 'px');
@@ -156,17 +159,9 @@
       <label>Durée
         <select id="opt-dur">${CFG.durations.map((m) => `<option value="${m}"${prefs.duration === m ? ' selected' : ''}>${m} min</option>`).join('')}</select>
       </label>`;
-    $('#options').innerHTML = `
-      <label>Contrôles
-        <select id="opt-ctl">
-          <option value="mixte"${prefs.controls === 'mixte' ? ' selected' : ''}>Flèches (ou souris) · sorts ${keyLabel.KeyQ} ${keyLabel.KeyW} ${keyLabel.KeyE} ${keyLabel.KeyR}</option>
-          <option value="clavier"${prefs.controls === 'clavier' ? ' selected' : ''}>Clavier ${moveKeysLabel()} · sorts 1 2 3 4</option>
-        </select>
-      </label>`;
+    renderOptions($('#options'));
     $('#opt-diff').onchange = (e) => { prefs.difficulty = e.target.value; CFG.difficulty = prefs.difficulty; savePrefs(); };
     $('#opt-dur').onchange = (e) => { prefs.duration = +e.target.value; CFG.timeLimit = prefs.duration * 60; savePrefs(); };
-    $('#opt-ctl').onchange = (e) => { prefs.controls = e.target.value; savePrefs(); renderMenu(); if (menuMode && menuMode !== 'solo') renderOnline(); };
-    $('#keys-help').innerHTML = controlsHelp();
     const list = $('#pick-cands');
     list.innerHTML = '';
     if (!chosenTeam) { list.innerHTML = '<p class="hint">Choisissez d’abord votre camp : vous pourrez incarner un candidat de ce camp ou un candidat neutre (plus faible).</p>'; return; }
@@ -318,15 +313,62 @@
   });
   function spellKey(k, i) { return prefs.controls === 'clavier' ? String(i + 1) : keyLabel['Key' + k]; }
   function syncKeyLabels() { ['Q', 'W', 'E', 'R'].forEach((k, i) => { KEY_LABEL[k] = spellKey(k, i); }); }
+  // liste des commandes, affichée dans les options
   function controlsHelp() {
-    const base = prefs.controls === 'clavier'
-      ? `<kbd>${moveKeysLabel()}</kbd> ou <kbd>flèches</kbd> se déplacer · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> sorts`
-      : `<kbd>flèches</kbd> (ou clic) se déplacer · <kbd>${keyLabel.KeyQ}</kbd><kbd>${keyLabel.KeyW}</kbd><kbd>${keyLabel.KeyE}</kbd><kbd>${keyLabel.KeyR}</kbd> sorts`;
-    return `${base} · les attaques partent <b>toutes seules</b> sur l’ennemi à portée, et les sorts visent <b>automatiquement</b> ·
-      sorts débloqués à ${CFG.unlock.Q} / ${CFG.unlock.W} / ${CFG.unlock.E} / ${CFG.unlock.R} % dans les sondages ·
-      <kbd>Tab</kbd> verrouiller un candidat · <kbd>Entrée</kbd> récolter le camp le plus proche · <kbd>B</kbd> retour au QG ·
-      <kbd>P</kbd> boutique (<kbd>flèches</kbd> + <kbd>Entrée</kbd> pour acheter ou améliorer) · <kbd>H</kbd> aide sur les statistiques · <kbd>Espace</kbd> caméra libre · <kbd>Échap</kbd> pause · <kbd>Maj</kbd>+sort : viser à la souris`;
+    const kb = prefs.controls === 'clavier';
+    const rows = [
+      [kb ? `<kbd>${moveKeysLabel()}</kbd> ou <kbd>flèches</kbd>` : '<kbd>flèches</kbd> ou clic', 'se déplacer'],
+      [kb ? '<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd>' : `<kbd>${keyLabel.KeyQ}</kbd><kbd>${keyLabel.KeyW}</kbd><kbd>${keyLabel.KeyE}</kbd><kbd>${keyLabel.KeyR}</kbd>`,
+        `sorts (débloqués à ${CFG.unlock.Q} / ${CFG.unlock.W} / ${CFG.unlock.E} / ${CFG.unlock.R} %)`],
+      ['<kbd>Maj</kbd> + sort', 'viser à la souris'],
+      ['<kbd>Tab</kbd>', 'verrouiller un candidat'],
+      ['<kbd>Entrée</kbd>', 'récolter le camp le plus proche'],
+      ['<kbd>B</kbd>', 'retour au QG'],
+      ['<kbd>P</kbd>', 'boutique (flèches + Entrée)'],
+      ['<kbd>H</kbd>', 'aide sur les statistiques'],
+      ['<kbd>Espace</kbd>', 'caméra libre · molette : zoom'],
+      ['<kbd>Échap</kbd>', 'pause et options'],
+    ];
+    return `<ul class="cmds">${rows.map(([k, v]) => `<li>${k} ${v}</li>`).join('')}</ul>
+      <p class="hint">Les attaques partent toutes seules sur l’ennemi à portée, et les sorts visent automatiquement.</p>`;
   }
+  // options : contrôles, musique et effets sonores (volume, coupure), commandes
+  function renderOptions(el) {
+    const vol = (key, mute, label) => `<div class="opt-row"><span>${label}</span>
+      <input type="range" min="0" max="100" step="1" value="${Math.round(prefs[key] * 100)}" data-vol="${key}" aria-label="Volume : ${label}">
+      <button type="button" class="mute" data-mute="${mute}" aria-pressed="${prefs[mute] ? 'true' : 'false'}">${prefs[mute] ? '🔇 Coupé' : '🔊 Actif'}</button></div>`;
+    el.innerHTML = `<h4>Contrôles</h4>
+      <div class="opt-row"><span>Disposition</span><select data-ctl aria-label="Contrôles">
+        <option value="mixte"${prefs.controls === 'mixte' ? ' selected' : ''}>Flèches (ou souris) · sorts ${keyLabel.KeyQ} ${keyLabel.KeyW} ${keyLabel.KeyE} ${keyLabel.KeyR}</option>
+        <option value="clavier"${prefs.controls === 'clavier' ? ' selected' : ''}>Clavier ${moveKeysLabel()} · sorts 1 2 3 4</option>
+      </select></div>
+      <h4>Son</h4>${vol('musicVol', 'musicMute', 'Musique')}${vol('sfxVol', 'sfxMute', 'Effets sonores')}
+      <h4>Commandes</h4>${controlsHelp()}`;
+    el.querySelector('[data-ctl]').onchange = (e) => {
+      prefs.controls = e.target.value; savePrefs(); syncKeyLabels();
+      renderMenu(); renderOptions($('#pause-opts'));
+      if (menuMode && menuMode !== 'solo') renderOnline();
+      if (running) buildAbilityBar();
+    };
+    for (const r of el.querySelectorAll('[data-vol]')) {
+      r.oninput = () => {
+        prefs[r.dataset.vol] = +r.value / 100;
+        Sound.set({ [r.dataset.vol]: prefs[r.dataset.vol] });
+        savePrefs();
+      };
+    }
+    for (const b of el.querySelectorAll('[data-mute]')) {
+      b.onclick = () => {
+        const k = b.dataset.mute;
+        prefs[k] = !prefs[k];
+        Sound.set({ [k]: prefs[k] });
+        savePrefs();
+        renderOptions(el);
+      };
+    }
+  }
+  // garde les deux panneaux d'options (menu et pause) synchronisés
+  function syncOptions() { renderOptions($('#options')); renderOptions($('#pause-opts')); }
   renderMenu();
   buildArena();
 
@@ -568,6 +610,7 @@
   });
   // Échap : pause en solo ; en ligne, simple menu (la partie continue)
   function showPause(on) {
+    if (on) syncOptions();
     $('#pause').classList.toggle('hidden', !on);
     $('#pause-t').textContent = online ? 'Menu — la partie continue' : 'Pause';
   }
@@ -692,6 +735,54 @@
   }
   $('#tips-close').onclick = () => { tipsDone = true; $('#tips').classList.add('hidden'); };
 
+  // ── Effets sonores : déduits des changements de l'état (solo comme en ligne) ──
+  const aud = { S: null };
+  function audioEvents(S) {
+    const p = S.player;
+    if (!p) return;
+    if (aud.S !== S) {
+      aud.S = S;
+      aud.b = S.bureaux.map((b) => b.owner);
+      aud.h = S.camps.map((c) => ({ ...c.h }));
+      aud.atk = new Map(S.cands.map((c) => [c.id, c.lastAtkAt || 0]));
+      aud.cd = new Map(S.cands.map((c) => [c.id, { ...c.cd }]));
+      return;
+    }
+    // volume selon la distance au centre de l'écran
+    const near = (x, y) => { const d = Math.hypot(x - cam.x, y - cam.y); return d > 1900 ? 0 : 1 - (d / 1900) * 0.85; };
+    S.bureaux.forEach((b, i) => {
+      if (b.owner === aud.b[i]) return;
+      aud.b[i] = b.owner;
+      Sound.sfx.conquest(b.owner === p.team, Math.max(0.55, near(b.x, b.y)));
+    });
+    S.camps.forEach((c, i) => {
+      const mine = c.h[p.team] > aud.h[i][p.team], theirs = c.h[TEAMS[p.team].enemy] > aud.h[i][TEAMS[p.team].enemy];
+      if (!mine && !theirs) return;
+      aud.h[i] = { ...c.h };
+      // récoltes de son camp toujours audibles, celles de l'adversaire seulement à proximité
+      const v = Math.max(near(c.x, c.y), mine ? 0.4 : 0);
+      if (v <= 0) return;
+      if (c.type === 'meeting') Sound.sfx.crowd(v); else Sound.sfx.signatures(v);
+    });
+    for (const c of S.cands) {
+      const la = c.lastAtkAt || 0;
+      if (la > (aud.atk.get(c.id) || 0)) {
+        aud.atk.set(c.id, la);
+        const v = c === p ? 1 : near(c.x, c.y) * 0.4;
+        if (!c.dead && v > 0.05) Sound.sfx.attack(v);
+      }
+      const prev = aud.cd.get(c.id);
+      if (!prev) continue;
+      for (const k of ['Q', 'W', 'E', 'R']) {
+        if (c.cd[k] > prev[k] + 0.5) {
+          const v = c === p ? 1 : near(c.x, c.y) * 0.55;
+          if (v > 0.05) Sound.sfx.cast(v);
+        }
+        prev[k] = c.cd[k];
+      }
+    }
+  }
+
   let endShown = false;
   function showEnd() {
     const S = Game.S;
@@ -701,6 +792,7 @@
     const pr = S.president, won = S.winner === S.player.team;
     const e = pr.def.fem ? 'e' : '';
     $('#end-title').textContent = won ? 'Victoire !' : 'Défaite…';
+    Sound.sfx.end(won);
     $('#end-title').className = S.winner;
     $('#end-pres').innerHTML = `<b>${pr.def.name}</b> est élu${e} président${e} de la République`;
     $('#end-reason').textContent = `${S.reason} · camp ${TEAMS[S.winner].name.toLowerCase()} · ${U.fmtTime(S.t)}`;
@@ -782,7 +874,7 @@
     }
     for (const c of S.cands) {
       if (c.dead) continue;
-      const q = P(c.x, c.y, 150 * (c.def.id === 'philippe' ? 1.1 : 1));
+      const q = P(c.x, c.y, 150 * Math.max(1, (c.def.look && c.def.look.height) || 1, c.def.id === 'philippe' ? 1.1 : 1)); // au-dessus des plus grands (Teddy Riner)
       const w = 80 * Math.max(0.75, scale), x = q.x - w / 2, y = q.y;
       g.fillStyle = 'rgba(0,0,0,0.8)'; g.fillRect(x - 2, y - 2, w + 4, 11);
       g.fillStyle = c.team === p.team ? '#5fd17a' : '#e5484d';
@@ -856,6 +948,7 @@
       hover = running && mouse.inside ? enemyAt(mouseWorld()) : null;
       ov.style.cursor = hover ? 'pointer' : 'crosshair';
       R3.sync(S, dt, t);
+      if (running) audioEvents(S);
       R3.render();
       drawOverlay(S, now);
       const a = R3.pickGround(0, H * 0.2, W, H), b = R3.pickGround(W, H, W, H);

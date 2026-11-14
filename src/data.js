@@ -245,7 +245,7 @@ const EXTRA = [
   ['markovic', 'Mira Markovic', 'MM', 'Parti animaliste', 'neutre', 'soigneur', ['Pétition', 'Refuge', 'Transhumance', 'Arche de Noé'], { hair: 0x3a2a20, style: 'long', suit: 0x6a8a3a, fem: 1 }],
   ['mikolajczak', 'Antoine Mikolajczak', 'AM', 'Équinoxe', 'neutre', 'tireur', ['Tableur', 'Expertise', 'Cap', 'Équinoxe'], { hair: 0x6b4a32, style: 'short', suit: 0x2f4f6a }],
   ['polony', 'Natacha Polony', 'NP', 'Sans étiquette', 'droite', 'mage', ['Éditorial', 'Souveraineté', 'Chronique', 'Une de magazine'], { hair: 0xe0c27a, style: 'short', suit: 0x2a2f3a, fem: 1 }],
-  ['riner', 'Teddy Riner', 'TR', 'Sans étiquette', 'droite', 'colosse', ['Ippon', 'Kimono', 'Balayage', 'Médaille d’or'], { hair: 0x161210, style: 'bald', suit: 0xf2f2f2, skin: 0x7a5238, height: 1.25 }],
+  ['riner', 'Teddy Riner', 'TR', 'Sans étiquette', 'droite', 'colosse', ['Ippon', 'Kimono', 'Balayage', 'Médaille d’or'], { hair: 0x161210, style: 'bald', suit: 0xf2f2f2, skin: 0x7a5238, height: 1.5 }],
   ['verdier', 'Fabien Verdier', 'FV', 'Sans étiquette', 'neutre', 'duelliste', ['Interpellation', 'Coup de poing', 'Avancée', 'Sursaut'], { hair: 0x4a3426, style: 'messy', suit: 0x3b4252 }],
 ];
 for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {

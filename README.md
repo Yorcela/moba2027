@@ -127,6 +127,15 @@ Dans le menu, les candidats sont triés par notoriété. Juan Branco, Anasse Kaz
 
 Le jeu se joue entièrement au clavier ; la souris est facultative. Le menu propose deux modes de contrôle et trois niveaux de difficulté (Facile par défaut). La difficulté n'affecte que les candidats adverses contrôlés par l'IA : leurs dégâts, leur réactivité et la fréquence de leurs sorts.
 
+Le sous-menu **Options** de l'accueil (et le menu **Échap** en partie) règle les contrôles, le volume de la musique et des effets sonores (avec un bouton pour couper chacun) et affiche la liste des commandes.
+
+## Sons
+
+Musique et effets sont **synthétisés en direct** (Web Audio, `src/audio.js`), sans aucun fichier audio. Ils démarrent au premier clic ou à la première touche, comme l'exigent les navigateurs.
+
+- **Musique** : un thème épique en boucle (la mineur, 100 BPM) avec basse en ostinato, cordes, taïkos et un motif de cuivres.
+- **Effets** : attaques automatiques, lancement des sorts, bureau de vote conquis (fanfare montante, ou descendante si c'est l'adversaire), foule qui acclame à la fin d'un meeting, griffonnages et carillon à la fin d'une collecte de parrainages, fanfare de victoire ou thème de défaite. Le volume baisse avec la distance à la caméra ; les récoltes de son camp restent toujours audibles.
+
 | Action | Mode « Flèches » (par défaut) | Mode « ZQSD » |
 |---|---|---|
 | Se déplacer | flèches (ou clic) | ZQSD (WASD en QWERTY) ou flèches |
@@ -155,6 +164,7 @@ src/render.js   rendu 2D (texture du sol, carte de map.html, mini-carte)
 src/render3d.js rendu 3D : ville, bâtiments, candidats caricaturés, militants
 src/ui.js       menu, HUD, contrôles souris / clavier, surcouche, boucle de jeu
 src/net.js      client en ligne : connexion, miroir de l’état, interpolation des instantanés
+src/audio.js    musique et effets sonores synthétisés (Web Audio)
 server/server.js serveur en ligne : salles, codes, matchmaking, sélection, moteur à 60 Hz
 ```
 

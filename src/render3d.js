@@ -704,7 +704,7 @@ const R3 = (() => {
     markovic: { hair: 0x1f1612, hs: 'tied', out: 'tweed', suit: 0x1b1b1d, shirt: 0xd0287a, necklace: 0xd8b04a, fem: 1 },
     mikolajczak: { hair: 0x2a1d17, hs: 'curly', mustache: 0x2a1d17, out: 'casual', suit: 0x1b1b1d, shirt: 0x1b1b1d },
     polony: { hair: 0xd2693a, hs: 'curly', out: 'tweed', suit: 0x2a2a2a, shirt: 0xf4f0e6, fem: 1 },
-    riner: { hair: 0x111111, hs: 'shaved', skin: 0x6a4530, out: 'gi', suit: 0xf6f6f2, h: 1.25 },
+    riner: { hair: 0x111111, hs: 'shaved', skin: 0x6a4530, out: 'gi', suit: 0xf6f6f2, h: 1.5 },
     verdier: { hair: 0x4a3426, hs: 'short', suit: 0x3b4252, tie: 0x5a2a2a },
   };
   const VSKIN = 0xf0c09a;
