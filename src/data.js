@@ -27,8 +27,8 @@ const CFG = {
   secondTour: 6 * 60,    // à partir de là, chaque bulletin compte double (60 % de la durée, recalculé)
   campStart: 5,          // s immobile pour le premier meeting / la première collecte de parrainages
   campExtra: 2.5,        // s de plus à chaque fois que le camp y retourne (mais ça rapporte plus)
-  mairieRespawn: 55,
-  meetingRespawn: 45,
+  mairieRespawn: 90,     // s de recharge d’une mairie après une collecte de parrainages
+  meetingRespawn: 90,    // s de recharge d’un meeting
   recallTime: 4,
   parrainagesWin: 500,   // un camp qui réunit 500 parrainages gagne la partie
   respawnMax: 15,        // délai de retour max (1 s par point de sondage)
