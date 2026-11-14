@@ -16,11 +16,11 @@
   let online = false, onlineMenu = false;
 
   // préférences (confort personnel, peut être indisponible)
-  const prefs = { controls: 'mixte', difficulty: 'facile', duration: 10, name: '', server: '', musicVol: 0.45, sfxVol: 0.75, musicMute: false, sfxMute: false };
+  const prefs = { controls: 'mixte', difficulty: 'facile', duration: 10, name: '', server: '', musicVol: 0.45, sfxVol: 0.75, musicMute: false, sfxMute: false, track: 'defaut' };
   try { Object.assign(prefs, JSON.parse(localStorage.getItem('moba2027-prefs') || '{}')); } catch (e) { /* stockage indisponible */ }
   function savePrefs() { try { localStorage.setItem('moba2027-prefs', JSON.stringify(prefs)); } catch (e) { /* ignore */ } }
   if (!DIFFICULTY[prefs.difficulty]) prefs.difficulty = 'facile';
-  Sound.set({ musicVol: +prefs.musicVol, sfxVol: +prefs.sfxVol, musicMute: !!prefs.musicMute, sfxMute: !!prefs.sfxMute });
+  Sound.set({ musicVol: +prefs.musicVol, sfxVol: +prefs.sfxVol, musicMute: !!prefs.musicMute, sfxMute: !!prefs.sfxMute, track: prefs.track === 'patriote' ? 'patriote' : 'defaut' });
   Sound.music(true); // démarre au premier clic ou à la première touche
   CFG.difficulty = prefs.difficulty;
   if (!CFG.durations.includes(prefs.duration)) prefs.duration = 10;
@@ -59,6 +59,7 @@
     $('#modes').classList.toggle('hidden', !!menuMode);
     $('#rules').classList.toggle('hidden', !!menuMode);
     $('#opts-box').classList.toggle('hidden', !!menuMode);
+    $('#credits-box').classList.toggle('hidden', !!menuMode);
     $('#mode-head').classList.toggle('hidden', !menuMode);
     $('#mode-title').textContent = menuMode ? MODE_TITLES[menuMode] : '';
   }
@@ -342,13 +343,23 @@
         <option value="mixte"${prefs.controls === 'mixte' ? ' selected' : ''}>Flèches (ou souris) · sorts ${keyLabel.KeyQ} ${keyLabel.KeyW} ${keyLabel.KeyE} ${keyLabel.KeyR}</option>
         <option value="clavier"${prefs.controls === 'clavier' ? ' selected' : ''}>Clavier ${moveKeysLabel()} · sorts 1 2 3 4</option>
       </select></div>
-      <h4>Son</h4>${vol('musicVol', 'musicMute', 'Musique')}${vol('sfxVol', 'sfxMute', 'Effets sonores')}
+      <h4>Son</h4>
+      <div class="opt-row"><span>Thème</span><select data-track aria-label="Thème musical">
+        <option value="defaut"${prefs.track !== 'patriote' ? ' selected' : ''}>Défaut</option>
+        <option value="patriote"${prefs.track === 'patriote' ? ' selected' : ''}>Patriote · La Marseillaise</option>
+      </select></div>
+      ${vol('musicVol', 'musicMute', 'Musique')}${vol('sfxVol', 'sfxMute', 'Effets sonores')}
       <h4>Commandes</h4>${controlsHelp()}`;
     el.querySelector('[data-ctl]').onchange = (e) => {
       prefs.controls = e.target.value; savePrefs(); syncKeyLabels();
       renderMenu(); renderOptions($('#pause-opts'));
       if (menuMode && menuMode !== 'solo') renderOnline();
       if (running) buildAbilityBar();
+    };
+    el.querySelector('[data-track]').onchange = (e) => {
+      prefs.track = e.target.value; savePrefs();
+      Sound.set({ track: prefs.track });
+      for (const s2 of document.querySelectorAll('[data-track]')) s2.value = prefs.track;
     };
     for (const r of el.querySelectorAll('[data-vol]')) {
       r.oninput = () => {

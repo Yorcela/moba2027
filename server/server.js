@@ -34,19 +34,30 @@ function makeEngine() {
 const REF = makeEngine(); // pour les données des candidats (lecture seule)
 
 // ── Fichiers statiques ──
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.txt': 'text/plain; charset=utf-8' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.txt': 'text/plain; charset=utf-8', '.mp3': 'audio/mpeg' };
 const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent((req.url || '/').split('?')[0]); } catch (e) { p = ''; }
   if (p === '/') p = '/index.html';
   if (p === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok'); }
-  const ok = /^\/(index\.html|map\.html|src\/[\w-]+\.js|docs\/[\w-]+\.(jpg|png)|assets\/[\w\/-]+\.(glb|gltf|bin|png|jpg|txt))$/.test(p) && !p.includes('..');
+  const ok = /^\/(index\.html|map\.html|src\/[\w-]+\.js|docs\/[\w-]+\.(jpg|png)|assets\/[\w\/-]+\.(glb|gltf|bin|png|jpg|txt|mp3))$/.test(p) && !p.includes('..');
   const file = path.join(ROOT, p);
   if (!ok || !file.startsWith(ROOT + path.sep)) { res.writeHead(404); return res.end('Introuvable'); }
-  fs.readFile(file, (err, data) => {
-    if (err) { res.writeHead(404); return res.end('Introuvable'); }
-    res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
-    res.end(data);
+  // envoi en flux, avec les requêtes partielles (Range) pour la musique
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404); return res.end('Introuvable'); }
+    const type = MIME[path.extname(file)] || 'application/octet-stream';
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (m && (m[1] || m[2])) {
+      let start = m[1] ? +m[1] : st.size - +m[2], end = m[1] && m[2] ? +m[2] : st.size - 1;
+      if (start < 0 || start >= st.size || end < start) { res.writeHead(416, { 'content-range': `bytes */${st.size}` }); return res.end(); }
+      end = Math.min(end, st.size - 1);
+      res.writeHead(206, { 'content-type': type, 'content-length': end - start + 1, 'content-range': `bytes ${start}-${end}/${st.size}`, 'accept-ranges': 'bytes', 'cache-control': 'no-cache' });
+      return fs.createReadStream(file, { start, end }).pipe(res);
+    }
+    res.writeHead(200, { 'content-type': type, 'content-length': st.size, 'accept-ranges': 'bytes', 'cache-control': 'no-cache' });
+    if (req.method === 'HEAD') return res.end();
+    fs.createReadStream(file).pipe(res);
   });
 });
 

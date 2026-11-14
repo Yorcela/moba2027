@@ -143,6 +143,9 @@
   .cmds { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 16px; margin: 0; padding: 0; list-style: none; color: #c3c9d8; font-size: 14px; }
   .cmds li kbd { margin-right: 3px; }
   .opts-panel .hint { text-align: left; margin: 8px 0 0; font-size: 13px; }
+  .credits ul { margin: 0 0 4px; padding-left: 18px; color: #c3c9d8; line-height: 1.5; }
+  .credits a { color: #ffd166; }
+  .credits a:hover { color: #fff; }
   #pause .opts-panel { margin-top: 14px; max-height: 52vh; overflow: auto; }
   details.rules-box summary { cursor: pointer; color: #aab1c6; font: 600 17px 'Barlow Condensed', system-ui, sans-serif; text-align: center; letter-spacing: .04em; list-style: none; }
   details.rules-box summary::-webkit-details-marker { display: none; }
@@ -352,6 +355,29 @@
       <div class="rule"><b>🏛️ Objectifs</b><span>Assemblée (10) : militants +25 %. Sénat (10) : parrainages et dons en continu. Élysée : 16 bulletins = présidentielle gagnée. Victoire avec l’Élysée <b>et</b> une des deux chambres. Second tour à 60 % du temps : bulletins doublés.</span></div>
       <div class="rule"><b>📊 Sondage</b><span>Tout le monde part de 0 %. Sorts débloqués à 5, 10, 15 et 30 %. À la fin du temps (5, 10 ou 15 min), le candidat en tête des sondages l’emporte pour son camp.</span></div>
       <div class="rule"><b>🏘️ Jungle</b><span>Mairies : parrainages. Meetings : dons. Entrée pour récolter : 12 s immobile chez soi, 7 s chez l’adversaire. Bouger annule.</span></div>
+    </div>
+    </details>
+    <details class="rules-box" id="credits-box"><summary>🎬 Crédits</summary>
+    <div class="opts-panel credits">
+      <h4>Musique</h4>
+      <ul>
+        <li><b>Thème « défaut »</b> : bande-son de <a href="https://www.youtube.com/@8bitdreams4u" target="_blank" rel="noopener">@8bitdreams4u</a> (YouTube)</li>
+        <li><b>Thème « patriote »</b> : <i>La Marseillaise</i> en version 8 bits, par <a href="https://www.youtube.com/@8BitUniverse" target="_blank" rel="noopener">@8BitUniverse</a> (YouTube)</li>
+        <li>Effets sonores : synthétisés dans le navigateur (Web Audio)</li>
+      </ul>
+      <h4>Modèles 3D</h4>
+      <ul>
+        <li>Immeubles, quartiers, campagne : <a href="https://kenney.nl/assets/city-kit-commercial" target="_blank" rel="noopener">City Kit (Commercial)</a>, <a href="https://kenney.nl/assets/city-kit-suburban" target="_blank" rel="noopener">City Kit (Suburban)</a>, <a href="https://kenney.nl/assets/nature-kit" target="_blank" rel="noopener">Nature Kit</a> et <a href="https://kenney.nl/assets/platformer-kit" target="_blank" rel="noopener">Platformer Kit</a> de <b>Kenney</b> (CC0)</li>
+        <li>Mairies : <i>Town House</i>, <i>Big Building</i> et <i>Building</i> de <b>Quaternius</b> (CC0, via <a href="https://poly.pizza" target="_blank" rel="noopener">Poly Pizza</a>)</li>
+        <li>Scènes de meeting : <i>Stage</i> et <i>Concert Stage</i> de <b>iPoly3D</b> (CC0, via <a href="https://poly.pizza" target="_blank" rel="noopener">Poly Pizza</a>)</li>
+        <li>Candidats, militants, animaux et palais de l’Élysée : construits en code pour le jeu</li>
+      </ul>
+      <h4>Code, polices et données</h4>
+      <ul>
+        <li>Moteur 3D : <a href="https://threejs.org" target="_blank" rel="noopener">Three.js</a> r128 (licence MIT)</li>
+        <li>Polices : <a href="https://fonts.google.com/specimen/Anton" target="_blank" rel="noopener">Anton</a> et <a href="https://fonts.google.com/specimen/Barlow+Condensed" target="_blank" rel="noopener">Barlow Condensed</a> (Google Fonts, licence SIL OFL)</li>
+        <li>Liste des candidats : <a href="https://poligraph.fr/elections/presidentielle-2027/candidats" target="_blank" rel="noopener">Poligraph</a></li>
+      </ul>
     </div>
     </details>
     <div id="modes">

@@ -1,11 +1,11 @@
 'use strict';
-// ─── Sons : effets et musique, entièrement synthétisés (Web Audio, aucun fichier) ───
+// ─── Sons : effets synthétisés (Web Audio, aucun fichier) et musique en MP3 ───
 // Le navigateur n'autorise le son qu'après une action du joueur : le contexte audio
 // démarre au premier clic ou à la première touche.
 const Sound = (() => {
-  let ctx = null, master = null, musicBus = null, sfxBus = null, noiseBuf = null;
-  const cfg = { musicVol: 0.45, sfxVol: 0.75, musicMute: false, sfxMute: false };
-  let musicOn = false, sched = null, nextBeat = 0, beat = 0;
+  let ctx = null, master = null, sfxBus = null, noiseBuf = null;
+  const cfg = { musicVol: 0.45, sfxVol: 0.75, musicMute: false, sfxMute: false, track: 'defaut' };
+  let musicOn = false;
   const last = {}; // limite de fréquence par effet
 
   function ensure() {
@@ -16,22 +16,19 @@ const Sound = (() => {
     master = ctx.createDynamicsCompressor();
     master.threshold.value = -14; master.ratio.value = 4;
     master.connect(ctx.destination);
-    musicBus = ctx.createGain(); musicBus.connect(master);
     sfxBus = ctx.createGain(); sfxBus.connect(master);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     apply();
-    if (musicOn) startScheduler();
     return true;
   }
   function apply() {
     if (!ctx) return;
     const t = ctx.currentTime;
-    musicBus.gain.setTargetAtTime(cfg.musicMute ? 0 : cfg.musicVol * 0.5, t, 0.05);
     sfxBus.gain.setTargetAtTime(cfg.sfxMute ? 0 : cfg.sfxVol, t, 0.05);
   }
-  function set(o) { Object.assign(cfg, o); apply(); }
+  function set(o) { Object.assign(cfg, o); apply(); applyMusic(); }
 
   // ── briques de synthèse ──
   function env(g, t, a, peak, d) {
@@ -131,72 +128,28 @@ const Sound = (() => {
     },
   };
 
-  // ── musique épique en boucle : la mineur, 100 BPM, 8 mesures ──
-  // basse en ostinato, nappe de cordes, taikos, cuivre sur un motif héroïque une boucle sur deux
-  const BPM = 100, SPB = 60 / BPM;
-  const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62], [57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]]; // Am F C G Am F G E
-  const MELODY = [ // [temps dans la boucle, note, durée en temps]
-    [0, 69, 1.5], [1.5, 72, 0.5], [2, 76, 2], [4, 77, 1.5], [5.5, 76, 0.5], [6, 72, 2], [8, 74, 1], [9, 72, 1], [10, 71, 2],
-    [12, 74, 1.5], [13.5, 76, 0.5], [14, 79, 2], [16, 81, 3], [19, 79, 1], [20, 77, 2], [22, 76, 2], [24, 74, 1], [25, 76, 1], [26, 79, 2], [28, 80, 4],
-  ];
-  function scheduleBeat(b, t) {
-    const bar = Math.floor(b / 4) % 8, inBar = b % 4, loopBeat = b % 32, loopN = Math.floor(b / 32);
-    const chord = PROG[bar];
-    // basse : croches, fondamentale puis octave
-    for (let k = 0; k < 2; k++) tone(musicBus, 'sawtooth', hz(chord[0] - 24 + k * 12), 0, t + (k * SPB) / 2, 0.01, SPB * 0.45, 0.18, 500);
-    // nappe de cordes au début de chaque mesure
-    if (inBar === 0) {
-      for (const n of chord) for (const det of [-6, 6]) {
-        const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
-        o.type = 'sawtooth'; o.frequency.value = hz(n); o.detune.value = det;
-        f.type = 'lowpass'; f.frequency.value = 1300;
-        o.connect(f); f.connect(g); g.connect(musicBus);
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.linearRampToValueAtTime(0.028, t + 0.5);
-        g.gain.setValueAtTime(0.028, t + SPB * 3.4);
-        g.gain.linearRampToValueAtTime(0.0001, t + SPB * 4);
-        o.start(t); o.stop(t + SPB * 4 + 0.05);
-      }
-    }
-    // taikos sur les temps 1 et 3 (+ le « et » du 3), caisse claire sur 2 et 4, roulement en fin de boucle
-    if (inBar === 0 || inBar === 2) tone(musicBus, 'sine', 130, 45, t, 0.004, 0.45, 0.55);
-    if (inBar === 2) tone(musicBus, 'sine', 120, 45, t + SPB / 2, 0.004, 0.35, 0.35);
-    if (inBar === 1 || inBar === 3) noise(musicBus, t, 0.12, 'bandpass', 1800, 0.8, 0.07);
-    noise(musicBus, t + SPB / 2, 0.03, 'highpass', 7000, 0.7, 0.025);
-    if (bar === 7 && inBar >= 2) for (let k = 0; k < 4; k++) tone(musicBus, 'sine', 150, 60, t + (k * SPB) / 4, 0.003, 0.15, 0.3);
-    if (loopN % 2 === 1) {
-      for (const [at, n, dur] of MELODY) {
-        if (at >= loopBeat && at < loopBeat + 1) {
-          const st = t + (at - loopBeat) * SPB;
-          tone(musicBus, 'square', hz(n), 0, st, 0.04, dur * SPB * 0.9, 0.05, 1600);
-          tone(musicBus, 'sawtooth', hz(n - 12), 0, st, 0.04, dur * SPB * 0.9, 0.035, 1200);
-        }
-      }
-    }
+  // ── musique : fichiers MP3 en boucle (version « défaut » ou « patriote ») ──
+  const TRACKS = { defaut: 'assets/music/soundtrack.mp3', patriote: 'assets/music/la-marseillaise.mp3' };
+  let el = null;
+  function applyMusic() {
+    if (!el) { el = new Audio(); el.loop = true; el.preload = 'none'; }
+    el.volume = Math.min(1, cfg.musicVol * 0.7);
+    if (!musicOn || cfg.musicMute || !ctx) { el.pause(); return; }
+    const track = TRACKS[cfg.track] ? cfg.track : 'defaut';
+    if (el.dataset.track !== track) { el.dataset.track = track; el.src = TRACKS[track]; }
+    if (el.paused) el.play().catch(() => { /* lecture refusée : réessayée au prochain geste */ });
   }
-  function startScheduler() {
-    if (sched || !ctx) return;
-    nextBeat = ctx.currentTime + 0.1;
-    sched = setInterval(() => {
-      // onglet en arrière-plan : on ne rattrape pas le retard
-      if (nextBeat < ctx.currentTime - 0.5) nextBeat = ctx.currentTime + 0.05;
-      while (nextBeat < ctx.currentTime + 0.25) { scheduleBeat(beat++, nextBeat); nextBeat += SPB; }
-    }, 50);
-  }
-  function music(on) {
-    musicOn = on;
-    if (on && ctx) startScheduler();
-    if (!on && sched) { clearInterval(sched); sched = null; }
-  }
+  function music(on) { musicOn = on; applyMusic(); }
 
   // démarrage au premier geste du joueur
   const unlock = () => {
     if (!ensure()) return;
+    applyMusic();
     window.removeEventListener('pointerdown', unlock, true);
     window.removeEventListener('keydown', unlock, true);
   };
   window.addEventListener('pointerdown', unlock, true);
   window.addEventListener('keydown', unlock, true);
 
-  return { set, cfg, music, sfx, get ready() { return !!ctx; } };
+  return { set, cfg, music, sfx, get ready() { return !!ctx; }, get musicState() { return el && { paused: el.paused, track: el.dataset.track, time: el.currentTime }; } };
 })();

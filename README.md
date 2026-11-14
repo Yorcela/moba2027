@@ -131,9 +131,10 @@ Le sous-menu **Options** de l'accueil (et le menu **Échap** en partie) règle l
 
 ## Sons
 
-Musique et effets sont **synthétisés en direct** (Web Audio, `src/audio.js`), sans aucun fichier audio. Ils démarrent au premier clic ou à la première touche, comme l'exigent les navigateurs.
+La musique et les effets démarrent au premier clic ou à la première touche, comme l'exigent les navigateurs (`src/audio.js`).
 
-- **Musique** : un thème épique en boucle (la mineur, 100 BPM) avec basse en ostinato, cordes, taïkos et un motif de cuivres.
+- **Musique** : deux thèmes en boucle, au choix dans les Options : **défaut** (bande-son de [@8bitdreams4u](https://www.youtube.com/@8bitdreams4u)) et **patriote** (*La Marseillaise* en 8 bits, par [@8BitUniverse](https://www.youtube.com/@8BitUniverse)), dans `assets/music/`.
+- Les effets sonores sont **synthétisés en direct** (Web Audio), sans fichier audio.
 - **Effets** : attaques automatiques, lancement des sorts, bureau de vote conquis (fanfare montante, ou descendante si c'est l'adversaire), foule qui acclame à la fin d'un meeting, griffonnages et carillon à la fin d'une collecte de parrainages, fanfare de victoire ou thème de défaite. Le volume baisse avec la distance à la caméra ; les récoltes de son camp restent toujours audibles.
 
 | Action | Mode « Flèches » (par défaut) | Mode « ZQSD » |
@@ -171,6 +172,11 @@ server/server.js serveur en ligne : salles, codes, matchmaking, sélection, mote
 Tous les équilibrages se règlent dans `CFG` (`src/data.js`).
 
 ## Crédits des assets
+
+Les crédits sont aussi affichés sur l’écran d’accueil (bouton **Crédits**).
+
+- Musique « défaut » : bande-son de [@8bitdreams4u](https://www.youtube.com/@8bitdreams4u) (YouTube), `assets/music/soundtrack.mp3`.
+- Musique « patriote » : *La Marseillaise* en 8 bits par [@8BitUniverse](https://www.youtube.com/@8BitUniverse) (YouTube), `assets/music/la-marseillaise.mp3`.
 
 - Immeubles : [City Kit (Commercial)](https://kenney.nl/assets/city-kit-commercial) de **Kenney**, sous licence CC0 (voir `assets/kenney/city-commercial/License.txt`). Les modèles sont chargés avec `GLTFLoader` (three@0.128.0, jsdelivr) et teintés selon le quartier. Si les modèles ne se chargent pas, par exemple quand le jeu est ouvert en `file://`, les blocs simples restent affichés. Paramètres d'URL : `?blocs=1` force la ville simplifiée, et `?ombres=1` active les ombres des immeubles (plus coûteuses).
 - Mairies : *Town House*, *Big Building* et *Building* de **Quaternius** (CC0, via [Poly Pizza](https://poly.pizza)), dans `assets/quaternius/`.
