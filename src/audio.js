@@ -1,5 +1,5 @@
 'use strict';
-// ─── Sons : effets synthétisés (Web Audio, aucun fichier) et musique en MP3 ───
+// ─── Sons : effets synthétisés (Web Audio), sons et musiques en MP3, phrases cultes en synthèse vocale ───
 // Le navigateur n'autorise le son qu'après une action du joueur : le contexte audio
 // démarre au premier clic ou à la première touche.
 const Sound = (() => {
@@ -94,16 +94,10 @@ const Sound = (() => {
       // coup de tampon sur l'urne
       tone(sfxBus, 'sine', 140, 60, t, 0.003, 0.18, 0.4 * vol);
     },
-    // fin de meeting : foule qui acclame et applaudit
+    // fin de meeting : foule qui acclame (enregistrement)
     crowd(vol = 1) {
       if (!ok('crowd', 1)) return;
-      const t = ctx.currentTime;
-      const g = noise(sfxBus, t, 2.2, 'bandpass', 900, 0.6, 0.22 * vol, 0.35);
-      g.gain.setTargetAtTime(0.0001, t + 1.6, 0.4);
-      noise(sfxBus, t + 0.1, 1.8, 'bandpass', 1900, 1.2, 0.08 * vol, 0.3);
-      for (let i = 0; i < 26; i++) noise(sfxBus, t + 0.15 + Math.random() * 1.9, 0.03, 'bandpass', 1500 + Math.random() * 1500, 1.5, (0.1 + Math.random() * 0.12) * vol);
-      // quelques « hourra ! »
-      for (let i = 0; i < 3; i++) tone(sfxBus, 'sawtooth', 300 + i * 70, 420 + i * 60, t + 0.2 + i * 0.25, 0.08, 0.35, 0.025 * vol, 1200);
+      sample('crowd', vol);
     },
     // fin de collecte de parrainages : griffonnages puis carillon
     signatures(vol = 1) {
@@ -112,21 +106,52 @@ const Sound = (() => {
       for (let i = 0; i < 4; i++) noise(sfxBus, t + i * 0.09, 0.06, 'bandpass', 3200 + i * 300, 3, 0.12 * vol);
       [76, 81, 88].forEach((n, i) => tone(sfxBus, 'sine', hz(n), 0, t + 0.38 + i * 0.1, 0.005, 0.9, 0.14 * vol));
     },
-    // fin de partie : fanfare de victoire ou thème de défaite
-    end(won) {
+    // fin de partie : son de victoire (enregistrement) puis phrase culte du président élu,
+    // ou thème de défaite synthétisé
+    end(won, quote) {
       if (!ctx || cfg.sfxMute) return;
+      if (won) {
+        const a = sample('victory', 1);
+        let said = false;
+        const say = () => { if (!said) { said = true; speak(quote); } };
+        if (a) { a.addEventListener('ended', say); a.addEventListener('error', say); }
+        setTimeout(say, 6000); // au cas où « ended » n'arrive pas
+        return;
+      }
       const t = ctx.currentTime + 0.05;
-      const seq = won ? [[60, 0, 0.18], [64, 0.18, 0.18], [67, 0.36, 0.18], [72, 0.54, 0.5], [67, 1.04, 0.16], [72, 1.2, 1.1]]
-        : [[67, 0, 0.3], [65, 0.32, 0.3], [63, 0.64, 0.3], [60, 0.96, 1.2]];
+      const seq = [[67, 0, 0.3], [65, 0.32, 0.3], [63, 0.64, 0.3], [60, 0.96, 1.2]];
       for (const [n, at, d] of seq) {
-        tone(sfxBus, won ? 'square' : 'triangle', hz(n), 0, t + at, 0.02, d, 0.12, 2200);
+        tone(sfxBus, 'triangle', hz(n), 0, t + at, 0.02, d, 0.12, 2200);
         tone(sfxBus, 'sawtooth', hz(n - 12), 0, t + at, 0.02, d, 0.07, 1000);
       }
-      const chord = won ? [60, 64, 67, 72] : [48, 51, 55];
-      for (const n of chord) tone(sfxBus, 'sawtooth', hz(n), 0, t + (won ? 1.2 : 0.96), 0.05, 1.8, 0.05, 1500);
-      tone(sfxBus, 'sine', 110, 40, t + (won ? 1.2 : 0.96), 0.005, 0.6, 0.5);
+      for (const n of [48, 51, 55]) tone(sfxBus, 'sawtooth', hz(n), 0, t + 0.96, 0.05, 1.8, 0.05, 1500);
+      tone(sfxBus, 'sine', 110, 40, t + 0.96, 0.005, 0.6, 0.5);
     },
   };
+
+  // ── sons enregistrés (MP3) ──
+  const SAMPLES = { crowd: 'assets/sfx/crowd.mp3', victory: 'assets/sfx/victory.mp3' };
+  const preload = {};
+  function sample(name, vol) {
+    if (cfg.sfxMute) return null;
+    if (!preload[name]) { preload[name] = new Audio(SAMPLES[name]); preload[name].preload = 'auto'; }
+    const a = preload[name].cloneNode();
+    a.volume = Math.max(0, Math.min(1, cfg.sfxVol * vol));
+    a.play().catch(() => {});
+    return a;
+  }
+  // phrase culte lue par la voix française du navigateur (synthèse vocale)
+  function speak(q) {
+    if (!q || cfg.sfxMute || !window.speechSynthesis) return;
+    const u = new SpeechSynthesisUtterance(q.say || q.text);
+    u.lang = 'fr-FR';
+    const v = speechSynthesis.getVoices().find((x) => /^fr(-|_)FR/i.test(x.lang)) || speechSynthesis.getVoices().find((x) => /^fr/i.test(x.lang));
+    if (v) u.voice = v;
+    u.rate = q.rate || 1; u.pitch = q.pitch || 1; u.volume = Math.min(1, cfg.sfxVol * 1.2);
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  }
+  if (window.speechSynthesis) speechSynthesis.getVoices(); // charge la liste des voix
 
   // ── musique : fichiers MP3 en boucle (version « défaut » ou « patriote ») ──
   const TRACKS = { defaut: 'assets/music/soundtrack.mp3', patriote: 'assets/music/la-marseillaise.mp3' };
@@ -151,5 +176,5 @@ const Sound = (() => {
   window.addEventListener('pointerdown', unlock, true);
   window.addEventListener('keydown', unlock, true);
 
-  return { set, cfg, music, sfx, get ready() { return !!ctx; }, get musicState() { return el && { paused: el.paused, track: el.dataset.track, time: el.currentTime }; } };
+  return { set, cfg, music, sfx, speak, get ready() { return !!ctx; }, get musicState() { return el && { paused: el.paused, track: el.dataset.track, time: el.currentTime }; } };
 })();

@@ -803,7 +803,9 @@
     const pr = S.president, won = S.winner === S.player.team;
     const e = pr.def.fem ? 'e' : '';
     $('#end-title').textContent = won ? 'Victoire !' : 'Défaite…';
-    Sound.sfx.end(won);
+    const quote = CATCHPHRASES[pr.def.id] || DEFAULT_CATCHPHRASE;
+    $('#end-quote').textContent = `« ${quote.text} »`;
+    Sound.sfx.end(won, quote);
     $('#end-title').className = S.winner;
     $('#end-pres').innerHTML = `<b>${pr.def.name}</b> est élu${e} président${e} de la République`;
     $('#end-reason').textContent = `${S.reason} · camp ${TEAMS[S.winner].name.toLowerCase()} · ${U.fmtTime(S.t)}`;

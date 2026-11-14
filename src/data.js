@@ -255,6 +255,32 @@ for (const [id, name, initials, party, team, arch, names, look] of EXTRA) {
     abilities: A.kit(names), look,
   });
 }
+// Phrases cultes du président élu, lues à la victoire (say : texte prononcé si différent)
+const CATCHPHRASES = {
+  melenchon: { text: 'La République, c’est moi !', pitch: 0.9 },
+  glucksmann: { text: 'Vive la Fraaaaaance !', say: 'Vive la Fraaance !', rate: 0.75 },
+  tondelier: { text: 'Le vert, c’est ma couleur !' },
+  roussel: { text: 'Un bon vin, une bonne viande, un bon fromage !' },
+  ruffin: { text: 'Merci patron !' },
+  cazeneuve: { text: 'La gauche de gouvernement est de retour !' },
+  arthaud: { text: 'Travailleuses, travailleurs !' },
+  bouamrane: { text: 'Saint-Ouen, champion du monde !' },
+  cheve: { text: 'Restons adultes, s’il vous plaît.' },
+  lepen: { text: 'Au nom du peuple !' },
+  philippe: { text: 'Je vous l’avais dit : j’étais prêt.' },
+  retailleau: { text: 'Force doit rester à la loi !' },
+  attal: { text: 'Le plus jeune président de l’histoire !', rate: 1.15 },
+  zemmour: { text: 'Impossible n’est pas français !' },
+  bertrand: { text: 'La France des territoires a gagné !' },
+  villepin: { text: 'C’est un vieux pays, la France, qui vous parle !', rate: 0.85, pitch: 0.85 },
+  dupontaignan: { text: 'Debout la France !' },
+  riner: { text: 'Ippon !', pitch: 0.7 },
+  lisnard: { text: 'Libérez les maires !' },
+  polony: { text: 'Souveraineté, enfin !' },
+  philippot: { text: 'Frexit, maintenant !' },
+  asselineau: { text: 'Article 50 !' },
+};
+const DEFAULT_CATCHPHRASE = { text: 'Vive la République, et vive la France !' };
 // Retirés du choix (et des bots), mais gardés dans le code
 const HIDDEN = new Set(['branco', 'kazib', 'labib', 'mikolajczak', 'verdier', 'batho', 'egger', 'markovic', 'platret', 'becht']);
 // Ordre d'affichage : les plus connus / les mieux placés d'abord

@@ -284,6 +284,9 @@
   #end-title { margin: 0; font-size: 44px; }
   #end-title.gauche { color: var(--gl); } #end-title.droite { color: var(--dl); }
   #end-pres { font-size: 20px; margin: 8px 0 4px; }
+  #end-quote { display: inline-block; margin: 4px 0 10px; padding: 8px 16px; border-radius: 14px; background: #f3f5fa; color: #15181d; font: 700 18px 'Barlow Condensed', system-ui, sans-serif; position: relative; }
+  #end-quote::after { content: ""; position: absolute; left: 28px; bottom: -9px; border: 9px solid transparent; border-top-color: #f3f5fa; border-bottom: 0; }
+  #end-quote:empty { display: none; }
   #end-reason { color: var(--mute); margin-bottom: 14px; }
   #end-poll { text-align: left; }
   #btn-replay { margin-top: 14px; padding: 10px 18px; border-radius: 10px; border: 0; background: var(--gold); color: #111; font-weight: 900; }
@@ -363,7 +366,9 @@
       <ul>
         <li><b>Thème « défaut »</b> : bande-son de <a href="https://www.youtube.com/@8bitdreams4u" target="_blank" rel="noopener">@8bitdreams4u</a> (YouTube)</li>
         <li><b>Thème « patriote »</b> : <i>La Marseillaise</i> en version 8 bits, par <a href="https://www.youtube.com/@8BitUniverse" target="_blank" rel="noopener">@8BitUniverse</a> (YouTube)</li>
-        <li>Effets sonores : synthétisés dans le navigateur (Web Audio)</li>
+        <li>Foule en fin de meeting et son de victoire : enregistrements fournis pour le jeu</li>
+        <li>Autres effets sonores : synthétisés dans le navigateur (Web Audio)</li>
+        <li>Phrases cultes du président élu : lues par la synthèse vocale du navigateur</li>
       </ul>
       <h4>Modèles 3D</h4>
       <ul>
@@ -472,6 +477,7 @@
   <div class="end-box panel">
     <h2 id="end-title"></h2>
     <div id="end-pres"></div>
+    <div id="end-quote"></div>
     <div id="end-reason"></div>
     <div id="end-poll"></div>
     <button id="btn-replay">Nouvelle campagne</button>

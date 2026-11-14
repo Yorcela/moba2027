@@ -134,7 +134,8 @@ Le sous-menu **Options** de l'accueil (et le menu **Échap** en partie) règle l
 La musique et les effets démarrent au premier clic ou à la première touche, comme l'exigent les navigateurs (`src/audio.js`).
 
 - **Musique** : deux thèmes en boucle, au choix dans les Options : **défaut** (bande-son de [@8bitdreams4u](https://www.youtube.com/@8bitdreams4u)) et **patriote** (*La Marseillaise* en 8 bits, par [@8BitUniverse](https://www.youtube.com/@8BitUniverse)), dans `assets/music/`.
-- Les effets sonores sont **synthétisés en direct** (Web Audio), sans fichier audio.
+- La foule en fin de meeting et le son de victoire sont des enregistrements (`assets/sfx/`) ; les autres effets sont **synthétisés en direct** (Web Audio).
+- À la victoire, après le son, la **phrase culte du président élu** (« La République, c’est moi ! », « Vive la Fraaaance ! »…) est lue par la synthèse vocale du navigateur et affichée dans une bulle (`CATCHPHRASES` dans `src/data.js`).
 - **Effets** : attaques automatiques, lancement des sorts, bureau de vote conquis (fanfare montante, ou descendante si c'est l'adversaire), foule qui acclame à la fin d'un meeting, griffonnages et carillon à la fin d'une collecte de parrainages, fanfare de victoire ou thème de défaite. Le volume baisse avec la distance à la caméra ; les récoltes de son camp restent toujours audibles.
 
 | Action | Mode « Flèches » (par défaut) | Mode « ZQSD » |
